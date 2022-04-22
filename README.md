@@ -1,13 +1,13 @@
 # Implicit Boundary Integral Method with FMM
 
-## OpenBlas
-- OpenBlas has to be compiled with ``OPENMP=1``.
-## Compile
-- mkdir build && cd build
-- cmake .. 
-- make
+## Install OpenBlas
+- First, in directory ``contrib``, run ``bash openblas.sh`` to install OpenBLAS (with OPENMP support).
+## Compile IBIM-LEVELSET
+- ``mkdir build && cd build``
+- ``cmake ..`` 
+- ``make``
 
-## Run it
+## Run Experiments
 There is an example config file in ``./data`` directory. Setting the numeric values and run with
 - ./levelset ../data/input.cfg
 
