@@ -20,7 +20,7 @@
 #include <functional>
 #include <chrono>
 #include <iomanip>
-#include "cblas.h"
+#include "./contrib/include/cblas.h"
 
 #if !defined __extern_always_inline && defined __clang__
 # if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
