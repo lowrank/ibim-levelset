@@ -1,6 +1,6 @@
 # Implicit Boundary Integral Method with FMM
 
-## Install OpenBlas
+## Install OpenBLAS
 - First, in directory ``contrib``, run ``bash openblas.sh`` to install OpenBLAS (with OPENMP support).
 ## Compile IBIM-LEVELSET
 - ``mkdir build && cd build``
