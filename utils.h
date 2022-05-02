@@ -47,7 +47,7 @@
 std::chrono::steady_clock::time_point begin =std::chrono::steady_clock::now(); \
 func;\
 std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();\
-std::cout << std::setw(15)<< s << " "  << std::setprecision(5) << std::setw(8) << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()/1000000.0 << " seconds"<<std::endl;\
+std::cout << std::setw(15)<< s << " "  << std::setprecision(7) << std::setw(8) << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()/1000000.0 << " seconds"<<std::endl;\
 }
 #else
 #define RUN(s, func){\

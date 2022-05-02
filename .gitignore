@@ -87,8 +87,8 @@ dkms.conf
 
 # Config
 
-
-.gitignore
 .idea/
 cmake-build-debug/
 data/
+build/
+contrib/

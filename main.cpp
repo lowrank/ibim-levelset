@@ -13,6 +13,7 @@
 
 int main(int argc, char* argv[]) {
 
+
 #ifdef RUN_OMP
     omp_set_num_threads(omp_get_max_threads());
 #endif
@@ -48,16 +49,16 @@ int main(int argc, char* argv[]) {
     Grid phi0(0., ls.Nx, ls.Ny, ls.Nz);
 
     RUN("EXPAND", ls.expand(mol, g, pr));
-    RUN("INWARD", ls.evolve(g, 1.4, s, 0.2));
+    RUN("INWARD", ls.evolve(g, 1.4, s, 0.1));
 
     g *= -1.0;
     phi0 = g;
 
-    RUN("REINIT 1st", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
+    RUN("REINIT 1st", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.25));
 
     phi0 = g;
 
-    RUN("REINIT 2nd", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
+    RUN("REINIT 2nd", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.25));
 
     Surface surf(g, ls, s);
 

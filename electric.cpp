@@ -506,4 +506,10 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
 }
 
+// eps   8.85418782 × 10**-12 m-3 kg-1 s4 A2
+// e     1.60217663 × 10**-19 
+// mol   6.02214076×10**23 
+// kcal  4184 kg m2/s2
+// A     10**-10 m
 
+// e^2/eps/A * mol / kcal = 4.17283566 x 10**3
