@@ -17,6 +17,7 @@
 #include <queue>
 #include <algorithm>
 #include <utility>
+#include <numeric>
 #include <functional>
 #include <chrono>
 #include <iomanip>
