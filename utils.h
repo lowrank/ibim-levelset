@@ -42,6 +42,7 @@
 #define DIM 3 /* 3D FMM, do not change */
 
 #define SQR(X) ((X)*(X))
+#define ENERGY_CONST  (4172.83566)
 
 #ifdef DISP
 #define RUN(s, func){ \

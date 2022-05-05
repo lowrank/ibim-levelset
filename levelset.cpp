@@ -99,7 +99,7 @@ void levelset::expand(Molecule &mol, Grid &g, scalar_t probe) {
             for (int b = icy - r; b <= icy + r; ++b) {
                 for (int c = icz - r; c<= icz + r; ++c) {
                     ls_point grid_p = {sx + a * dx, sy + b * dx, sz + c * dx};
-                    scalar_t dist = (mol.radii[aId] + probe) - norm(grid_p - mol.centers[aId]) ;
+                    scalar_t dist = (mol.radii[aId] + probe) - norm(grid_p - mol.centers[aId]);
                     dist = max(dist, g.get(a, b,c));
                     g.set(dist, a, b, c);
                 }
@@ -125,7 +125,7 @@ void levelset::evolve(Grid &g, scalar_t final_t, scalar_t vel, scalar_t cfl_thre
     auto core = omp_get_max_threads();
     omp_set_num_threads(core);
 
-    double* window = (double*)malloc((core)*DIM * shift * sizeof(double));
+    scalar_t* window = (scalar_t*)malloc((core)*DIM * shift * sizeof(scalar_t));
 
     for (step = 0; step < num_steps; ++step) {
 #pragma omp parallel for private(Dup, Dun) schedule(static, CHUNK) collapse(3) num_threads(core)
@@ -205,7 +205,7 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
     auto core = omp_get_max_threads();
     omp_set_num_threads(core);
 
-    double* window = (double*)malloc((core)*DIM * shift * sizeof(double));
+    scalar_t* window = (scalar_t*)malloc((core)*DIM * shift * sizeof(scalar_t));
 
     int indices = 0;
 
@@ -226,8 +226,8 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         setGradient(dir, window + tid * DIM * shift, Dup, Dun);
                     }
 
-                    double sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    double normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                     u1.data[I] = g.data[I] - dt * vel * sign * (normDu - 1.0);
                 }
@@ -247,8 +247,8 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         setGradient(dir,window+ tid * DIM * shift, Dup, Dun);
                     }
 
-                    double sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    double normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                     u2.data[I] = (3 * g.data[I] + u1.data[I] - dt * vel * sign *  (normDu - 1.0)) / 4.0;
                 }
@@ -268,8 +268,8 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         setGradient(dir, window+ tid * DIM * shift, Dup, Dun);
                     }
 
-                    double sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    double normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                     g.data[I] =( g.data[I] + 2 * (u2.data[I] - dt * vel * sign *  (normDu - 1.0)) ) / 3.0;
                 }
@@ -405,14 +405,15 @@ index_t levelset::countGradient(Grid &g, scalar_t thickness, scalar_t thres, sca
     for (index_t i = 0; i < Nx; ++i) {
         for (index_t j = 0; j < Ny; ++j) {
             for (index_t k= 0; k < Nz; ++k) {
-                if ( fabs(g.get(i, j, k)) < thickness * dx ) {
+                scalar_t d = g.get(i, j, k);
+                if ( fabs(d) < thickness * dx ) {
                     total++;
                     setWindow(g, _window, i, j, k);
                     for (index_t dir = 0; dir < DIM; ++dir) {
                         setGradient(dir, _window, _Dup, _Dun);
                     }
 
-                    scalar_t nr = getNorm(_Dun, _Dup);
+                    scalar_t nr = d > 0 ? getNorm(_Dun, _Dup):getNorm(_Dup, _Dun);
 
                     if (fabs(nr - 1.0) > thres) {
                             indices++;
@@ -438,7 +439,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
     ls_point _Dun, _Dup;
 
-    scalar_t* _window =  (double*)malloc(DIM * ls.shift * sizeof(double));
+    scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
     scalar_t tube_width = ls.thickness * ls.dx;
 
     vector<short> visited((unsigned long) (ls.Nx * ls.Ny * ls.Nz), 0);
@@ -540,7 +541,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
     for (index_t i = 0; i < ls.Nx; ++i) {
         for (index_t j = 0; j < ls.Ny; ++j) {
             for (index_t k= 0; k < ls.Nz; ++k) {
-                if ( fabs(g.get(i, j, k)) <  tube_width) {
+                scalar_t d = g.get(i, j, k);
+                if ( fabs(d) <  tube_width) {
                     ls.setWindow(g, _window, i, j, k);
                     for (index_t dir = 0; dir < DIM; ++dir) {
                         ls.setGradient(dir, _window, _Dup, _Dun);
@@ -550,6 +552,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
                      * current gradient is qualified.
                      */
                     _Dun = (_Dun + _Dup) * 0.5;
+                    _Dun = _Dun * (1.0 / norm(_Dun));
 
                     ls_point P = {
                             ls.sx + i * ls.dx,

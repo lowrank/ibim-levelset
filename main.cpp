@@ -49,16 +49,14 @@ int main(int argc, char* argv[]) {
     Grid phi0(0., ls.Nx, ls.Ny, ls.Nz);
 
     RUN("EXPAND", ls.expand(mol, g, pr));
-    RUN("INWARD", ls.evolve(g, 1.4, s, 0.1));
+    RUN("INWARD", ls.evolve(g, 1.4, s, 0.2));
 
     g *= -1.0;
     phi0 = g;
 
-    RUN("REINIT 1st", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.25));
-
-    phi0 = g;
-
-    RUN("REINIT 2nd", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.25));
+    for (index_t reinit_step = 0; reinit_step < 2; reinit_step++) {
+        RUN("REINIT "+std::to_string(reinit_step), ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
+    }
 
     Surface surf(g, ls, s);
 

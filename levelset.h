@@ -66,6 +66,9 @@ public:
     ~Surface();
     vector<ls_point> nodes;
     vector<ls_point> normals;
+    vector<ls_point> jac_x; // \partial_x Normal.
+    vector<ls_point> jac_y; // \partial_y Normal.
+    vector<ls_point> jac_z; // \partial_z Normal.
     vector<scalar_t> weight;
 
     void output(std::string filename);
