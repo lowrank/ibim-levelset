@@ -300,6 +300,36 @@ scalar_t levelset::getNorm(ls_point &Dun, ls_point &Dup) {
     return sqrt(val);
 }
 
+
+/// getVec
+/// \param Dun : input backward gradient vector.
+/// \param Dup : input forward gradient vector.
+/// \return : ls_point
+ls_point levelset::getVec(ls_point &Dun, ls_point &Dup) {
+    ls_point vec;
+    for (int i = 0; i < DIM; ++i) {
+        bool neg_pos = (Dun.data[i] > 0.);
+        bool pos_neg = (Dup.data[i] < 0.);
+        if (neg_pos) {
+            if (pos_neg) {
+                vec.data[i] = Dun.data[i] + Dup.data[i] > 0 ? Dun.data[i] : Dup.data[i];
+            }
+            else {
+                vec.data[i] = Dun.data[i]; // both positive
+            }
+        }
+        else {
+            if (pos_neg) {
+                vec.data[i] = Dup.data[i]; // both negative
+            }
+            else {
+                vec.data[i] = 0.;
+            }
+        }
+    }
+    return vec;
+}
+
 /// setWindow
 /// \param g : input grid
 /// \param window : window pointer
@@ -437,7 +467,7 @@ index_t levelset::countGradient(Grid &g, scalar_t thickness, scalar_t thres, sca
 /// \param ls
 Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
-    ls_point _Dun, _Dup;
+    ls_point _Dun, _Dup, _n;
 
     scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
     scalar_t tube_width = ls.thickness * ls.dx;
@@ -541,8 +571,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
     for (index_t i = 0; i < ls.Nx; ++i) {
         for (index_t j = 0; j < ls.Ny; ++j) {
             for (index_t k= 0; k < ls.Nz; ++k) {
-                scalar_t d = g.get(i, j, k);
-                if ( fabs(d) <  tube_width) {
+                scalar_t dist = g.get(i, j, k);
+                if ( fabs(dist) <  tube_width) {
                     ls.setWindow(g, _window, i, j, k);
                     for (index_t dir = 0; dir < DIM; ++dir) {
                         ls.setGradient(dir, _window, _Dup, _Dun);
@@ -551,23 +581,22 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
                     /*
                      * current gradient is qualified.
                      */
-                    _Dun = (_Dun + _Dup) * 0.5;
-                    _Dun = _Dun * (1.0 / norm(_Dun));
+                    _n = dist > 0 ? ls.getVec(_Dun, _Dup) : ls.getVec(_Dup, _Dun);
+
+                    _n = _n * (1.0/norm(_n));
 
                     ls_point P = {
                             ls.sx + i * ls.dx,
                             ls.sy + j * ls.dx,
                             ls.sz + k * ls.dx
                     };
-
-                    scalar_t dist = g.get(i, j, k);
                     /*
                      * projection
                      */
-                    P = P - _Dun * dist;
+                    P = P - _n * dist;
 
                     nodes.push_back(P);
-                    normals.push_back(_Dun);
+                    normals.push_back(_n);
                     /*
                      * calculates the weight according to the distance.
                      *

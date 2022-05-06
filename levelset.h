@@ -55,6 +55,7 @@ public:
     void setWindow(Grid& g, scalar_t* window, index_t i, index_t j, index_t k);
     void setGradient(index_t dir, scalar_t* window, ls_point& uxp, ls_point& uxn);
     scalar_t getNorm(ls_point& Dun, ls_point& Dup);
+    ls_point getVec(ls_point &Dun, ls_point &Dup);
 
     index_t countGradient(Grid& g, scalar_t thickness, scalar_t thres, scalar_t* window, bool display= false);
 };
