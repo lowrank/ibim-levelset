@@ -292,10 +292,10 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
 /// \param Dup : input forward gradient vector.
 /// \return : norm
 scalar_t levelset::getNorm(ls_point &Dun, ls_point &Dup) {
+    // should not modify values.
     scalar_t val = 0.;
     for (int i = 0; i < DIM; ++i) {
-        Dun.data[i] = max((Dun.data[i] > 0. ? Dun.data[i] : 0.), (Dup.data[i] < 0. ? -Dup.data[i] : 0.));
-        val += SQR(Dun.data[i]);
+        val += SQR(max((Dun.data[i] > 0. ? Dun.data[i] : 0.), (Dup.data[i] < 0. ? -Dup.data[i] : 0.)) );
     }
     return sqrt(val);
 }
@@ -352,7 +352,7 @@ void levelset::setWindow(Grid &g, scalar_t *window, index_t i, index_t j, index_
     }
 }
 
-/// setGradient
+/// setGradient (WENO 5)
 /// \param dir : input axis, 0, 1, 2 for x, y, z.
 /// \param window : window pointer.
 /// \param uxp : output forward gradient
@@ -417,6 +417,55 @@ void levelset::setGradient(index_t dir, scalar_t *window, ls_point &uxp, ls_poin
     uxn.data[dir] /= dx;
 }
 
+/// setHessian 
+/// \param _l: left vector
+/// \param _m: center vector
+/// \param _r: right vector
+/// \param H: Hessian entries (0, dir) (1, dir) (2, dir)
+void levelset::setHessian(
+    Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k,
+    ls_point& _Dun, ls_point& _Dup,
+    ls_point& _m, ls_point& H) {
+
+    ls_point _l, _r;
+    scalar_t a, b, dist;
+
+    if (dir == 0) {
+        dist = g.get(i-1, j, k);
+        _l = getGradient(g, window, i-1, j, k, dist, _Dun, _Dup);
+        dist = g.get(i+1, j, k);
+        _r = getGradient(g, window, i+1, j, k, dist, _Dun, _Dup);
+    }
+    else if (dir == 1) {
+        dist = g.get(i, j-1, k);
+        _l = getGradient(g, window, i, j-1, k, dist, _Dun, _Dup);
+        dist = g.get(i, j+1, k);
+        _r = getGradient(g, window, i, j+1, k, dist, _Dun, _Dup);        
+    }
+    else {
+        dist = g.get(i, j, k-1);
+        _l = getGradient(g, window, i, j, k-1, dist, _Dun, _Dup);
+        dist = g.get(i, j, k+1);
+        _r = getGradient(g, window, i, j, k+1, dist, _Dun, _Dup);            
+    }
+
+
+    for (index_t _dir = 0; _dir < DIM; _dir++) {
+        // along each direction, differentiate dir.
+
+        a = _m.data[_dir] - _l.data[_dir];
+        b = _r.data[_dir] - _m.data[_dir];
+
+        if (a * b > 0) {
+            H.data[_dir] = 0.5 * (a + b) / dx;
+        }
+        else {
+            // select smaller magitude
+            H.data[_dir] = (fabs(a) > fabs(b) ? b : a) / dx ;
+        }
+    }    
+}
+
 /// countGradient
 /// \param g grid
 /// \param thickness tube layer number
@@ -462,12 +511,58 @@ index_t levelset::countGradient(Grid &g, scalar_t thickness, scalar_t thres, sca
     return indices;
 }
 
+
+ls_point levelset::find_root(scalar_t b, scalar_t c, scalar_t d) {
+    ls_point roots;
+    scalar_t eps = 1e-8;
+
+    scalar_t p = (3 * c - SQR(b)) / 3.0;
+    scalar_t q = (2 * SQR(b) * b - 9 * b * c + 27 * d) / 27.0;
+    scalar_t C = sqrt(-p / 3.0);
+    scalar_t t = 3 * q / (2 * p * C);
+
+    if (fabs(t) > 1) { // avoid numerical instability
+        t = t > 0 ? 1:-1;
+    }
+    roots.data[0] = 2 * C * cos( acos (t) / 3  ) - b/3.0;
+    roots.data[1] = 2 * C * cos( acos (t) / 3 - 2 * M_PI / 3 ) - b/3.0;
+    roots.data[2] = 2 * C * cos( acos (t) / 3 - 4 * M_PI / 3 ) - b/3.0;
+
+    std::sort(roots.data, roots.data + 3);
+
+    return roots;
+}
+
+/// getGradient
+/// \param g grid
+/// \param g : input grid
+/// \param window : window pointer
+/// \param i : input x axis
+/// \param j : input y axis
+/// \param k : input z axis
+/// \param dist: signed distance
+/// \param Dun: ls_point 
+/// \param Dup: ls_point
+/// \return ls_point
+ls_point levelset::getGradient( Grid& g, scalar_t* window, index_t i, index_t j, index_t k, scalar_t dist, ls_point &Dun, ls_point &Dup ) {
+    ls_point _n;
+    scalar_t eps=1e-8;
+    setWindow(g, window, i, j, k);
+    for (index_t dir = 0; dir < DIM; ++dir) {
+        setGradient(dir, window, Dup, Dun);
+    }
+    _n = dist > 0 ? getVec(Dun, Dup) : getVec(Dup, Dun);
+    _n = _n * (1.0/(norm(_n)+eps));
+    return _n;
+}
+
 /// build surface, remove inclusions.
 /// \param g
 /// \param ls
 Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
-    ls_point _Dun, _Dup, _n;
+    ls_point _Dun, _Dup;
+    ls_point m_n, l_n, r_n, _H0, _H1, _H2;
 
     scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
     scalar_t tube_width = ls.thickness * ls.dx;
@@ -573,17 +668,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
             for (index_t k= 0; k < ls.Nz; ++k) {
                 scalar_t dist = g.get(i, j, k);
                 if ( fabs(dist) <  tube_width) {
-                    ls.setWindow(g, _window, i, j, k);
-                    for (index_t dir = 0; dir < DIM; ++dir) {
-                        ls.setGradient(dir, _window, _Dup, _Dun);
-                    }
-
-                    /*
-                     * current gradient is qualified.
-                     */
-                    _n = dist > 0 ? ls.getVec(_Dun, _Dup) : ls.getVec(_Dup, _Dun);
-
-                    _n = _n * (1.0/norm(_n));
+                    m_n = ls.getGradient(g, _window, i, j, k, dist, _Dun, _Dup);
 
                     ls_point P = {
                             ls.sx + i * ls.dx,
@@ -593,21 +678,48 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
                     /*
                      * projection
                      */
-                    P = P - _n * dist;
+                    P = P - m_n * dist;
 
                     nodes.push_back(P);
-                    normals.push_back(_n);
+                    normals.push_back(m_n);
+
+
+
+                    /*
+                     * compute the nearby gradients for Hessian.
+                     */
+                    ls.setHessian(g, _window, 0, i, j, k, _Dun, _Dup, m_n, _H0);
+                    ls.setHessian(g, _window, 1, i, j, k, _Dun, _Dup, m_n, _H1);
+                    ls.setHessian(g, _window, 2, i, j, k, _Dun, _Dup, m_n, _H2);
+
+                    // symmetrize the Hessian matrix
+                    _H0.data[1] = 0.5 * (_H0.data[1] + _H1.data[0]);
+                    _H1.data[0] = _H0.data[1];
+
+                    _H0.data[2] = 0.5 * (_H0.data[2] + _H2.data[0]);
+                    _H2.data[0] = _H0.data[2];
+
+                    _H1.data[2] = 0.5 * (_H1.data[2] + _H2.data[1]);
+                    _H2.data[1] = _H1.data[2];
+
+                    scalar_t b = -(_H0.data[0] + _H1.data[1] + _H2.data[2]);
+                    scalar_t c = (_H0.data[0] * _H1.data[1] + _H1.data[1] * _H2.data[2] + _H2.data[2] * _H0.data[0]) - 
+                    (_H0.data[1] * _H1.data[0] + _H1.data[2] * _H2.data[1] + _H2.data[0] * _H0.data[2]);
+                    scalar_t d = -(_H0.data[0] * _H1.data[1] * _H2.data[2] + _H0.data[1] * _H1.data[2] * _H2.data[0] + _H0.data[2] *_H1.data[0] * _H2.data[1]) +
+                    (_H0.data[2] * _H1.data[1] * _H2.data[0] + _H0.data[0] * _H1.data[2] * _H2.data[1] + _H0.data[1] * _H1.data[0] * _H2.data[2]);
+
+                    ls_point curvatures = ls.find_root(b, c, d);
+                    scalar_t rho = 1.0 + 0.5 * ( curvatures.data[1] + curvatures.data[2] ) * dist + ( curvatures.data[1] * curvatures.data[2] ) * SQR( dist ) ;
                     /*
                      * calculates the weight according to the distance.
                      *
-                     * 1. cos weight.
-                     * 2. triangle weight
+                     * 1. cos weight : 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width
+                     * 2. triangle weight : (1.0 - fabs(dist)/tube_width)/tube_width
                      * 3. infinitely smooth weight
                      *
                      */
-                    weight.push_back(0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
-//                    weight.push_back((1.0 - fabs(dist)/tube_width)/tube_width);
-
+                    weight.push_back(rho * 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
+                    // weight.push_back(0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
 
                 }
             }

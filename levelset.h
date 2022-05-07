@@ -54,10 +54,17 @@ public:
 
     void setWindow(Grid& g, scalar_t* window, index_t i, index_t j, index_t k);
     void setGradient(index_t dir, scalar_t* window, ls_point& uxp, ls_point& uxn);
+
+    void setHessian(Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k, ls_point& _Dun, ls_point& _Dup,ls_point& _m, ls_point& H);
+
     scalar_t getNorm(ls_point& Dun, ls_point& Dup);
     ls_point getVec(ls_point &Dun, ls_point &Dup);
 
+    ls_point getGradient( Grid& g, scalar_t* window, index_t i, index_t j, index_t k, scalar_t dist, ls_point &Dun, ls_point &Dup);
+
     index_t countGradient(Grid& g, scalar_t thickness, scalar_t thres, scalar_t* window, bool display= false);
+
+    ls_point find_root(scalar_t b, scalar_t c, scalar_t d);
 };
 
 class Surface {
@@ -67,10 +74,8 @@ public:
     ~Surface();
     vector<ls_point> nodes;
     vector<ls_point> normals;
-    vector<ls_point> jac_x; // \partial_x Normal.
-    vector<ls_point> jac_y; // \partial_y Normal.
-    vector<ls_point> jac_z; // \partial_z Normal.
     vector<scalar_t> weight;
+    // vector<scalar_t> weight_jac;
 
     void output(std::string filename);
 };

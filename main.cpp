@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
     scalar_t dx = (grid_hi - grid_lo) / scalar_t(size);
 
     std::cout << std::setw(15) << "h" << " " << std::setw(8) << dx / s << " Angstroms" << std::endl;
+    std::cout << std::setw(15) << "s" << " " << std::setw(8) << s << " Rescale" << std::endl;
 
 
     levelset ls(size, size, size, 8, grid_lo, grid_lo, grid_lo, dx, cfg);
@@ -54,12 +55,9 @@ int main(int argc, char* argv[]) {
     g *= -1.0;
     phi0 = g;
 
-    for (index_t reinit_step = 0; reinit_step < 2; reinit_step++) {
-        RUN("REINIT "+std::to_string(reinit_step), ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
-    }
+    RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
 
     Surface surf(g, ls, s);
-
 
 #ifdef GRID
     g.output("../data/output.grid");
