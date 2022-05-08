@@ -30,7 +30,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
                     surf.nodes[id].data[2]/rescale
                 }
         );
-        weight.push_back(surf.weight[id] * rescale * dx * SQR(dx));
+        weight.push_back(surf.weights[id] * rescale * dx * SQR(dx));
 
         /*
          * normal vectors do not rescale.
@@ -489,6 +489,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
     Vector energy(mol.N); setValue(energy, 0.);
     energy = polarizeMap(source, target_centers, weight, normalX, normalY, normalZ, start);
 
+
     std::ofstream energyFile;
     energyFile.open(cfg.options["energy_file"]);
 
@@ -496,6 +497,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         energyFile << energy(id) << "\n";
     }
     energyFile.close();
+
 
     scalar_t polarizedEnergy = 0.;
     for (auto id = 0; id < energy.row(); ++id) {

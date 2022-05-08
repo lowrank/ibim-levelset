@@ -65,6 +65,8 @@ public:
     index_t countGradient(Grid& g, scalar_t thickness, scalar_t thres, scalar_t* window, bool display= false);
 
     ls_point find_root(scalar_t b, scalar_t c, scalar_t d);
+
+    void setInclusion(Grid& g);
 };
 
 class Surface {
@@ -74,8 +76,9 @@ public:
     ~Surface();
     vector<ls_point> nodes;
     vector<ls_point> normals;
-    vector<scalar_t> weight;
-    // vector<scalar_t> weight_jac;
+
+    vector<scalar_t> weights;
+    vector<scalar_t> curvatures;
 
     void output(std::string filename);
 };

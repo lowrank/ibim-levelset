@@ -557,7 +557,7 @@ ls_point levelset::find_root(scalar_t b, scalar_t c, scalar_t d) {
 /// \return ls_point
 ls_point levelset::getGradient( Grid& g, scalar_t* window, index_t i, index_t j, index_t k, scalar_t dist, ls_point &Dun, ls_point &Dup ) {
     ls_point _n;
-    scalar_t eps=1e-8;
+    scalar_t eps=1e-10;
     setWindow(g, window, i, j, k);
     for (index_t dir = 0; dir < DIM; ++dir) {
         setGradient(dir, window, Dup, Dun);
@@ -567,18 +567,12 @@ ls_point levelset::getGradient( Grid& g, scalar_t* window, index_t i, index_t j,
     return _n;
 }
 
-/// build surface, remove inclusions.
-/// \param g
-/// \param ls
-Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
-    ls_point _Dun, _Dup;
-    ls_point m_n, l_n, r_n, _H0, _H1, _H2;
+void levelset::setInclusion(Grid& g) {
 
-    scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
-    scalar_t tube_width = ls.thickness * ls.dx;
+    scalar_t tube_width = thickness * dx;
 
-    vector<short> visited((unsigned long) (ls.Nx * ls.Ny * ls.Nz), 0);
+    vector<short> visited((unsigned long) (Nx * Ny * Nz), 0);
 
     queue<int> Queue;
     Queue.push(0);
@@ -589,9 +583,9 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
         Queue.pop();
 
-        int I = cur_index / (ls.Ny * ls.Nz);
-        int J = cur_index / ls.Nz - I * ls.Ny;
-        int K = cur_index % ls.Nz;
+        int I = cur_index / (Ny * Nz);
+        int J = cur_index / Nz - I * Ny;
+        int K = cur_index % Nz;
         /*
          * 6 directions to go
          */
@@ -600,8 +594,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cI = I + 1;
         cJ = J;
         cK = K;
-        if (cI <= ls.Nx - 1) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+        if (cI <= Nx - 1) {
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -612,7 +606,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cJ = J;
         cK = K;
         if (cI >= 0) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -621,8 +615,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cI = I;
         cJ = J + 1;
         cK = K;
-        if (cJ <= ls.Ny - 1) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+        if (cJ <= Ny - 1) {
+            next_index = cI *Ny *Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -632,7 +626,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cJ = J - 1;
         cK = K;
         if (cJ >= 0) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -641,8 +635,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cI = I;
         cJ = J;
         cK = K + 1;
-        if (cK <= ls.Nz - 1) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+        if (cK <=Nz - 1) {
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -652,7 +646,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cJ = J;
         cK = K - 1;
         if (cK >= 0) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -665,14 +659,26 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
      */
     auto inclusion_value = -(tube_width + 1e-15);
     int cnt = 0;
-    for (index_t id = 0; id < ls.Nx * ls.Ny * ls.Nz; ++id) {
+    for (index_t id = 0; id <Nx *Ny * Nz; ++id) {
         if (!visited[id] && fabs(g.data[id]) < tube_width) {
             g.data[id] = inclusion_value;
             cnt++;
         }
     }
     std::cout << std::setw(15) << "INCLUSION" << " " << std::setw(8) << cnt << std::endl;
+}
 
+
+/// build surface, remove inclusions.
+/// \param g
+/// \param ls
+Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
+
+    ls_point _Dun, _Dup;
+    ls_point m_n, l_n, r_n, _H0, _H1, _H2;
+
+    scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
+    scalar_t tube_width = ls.thickness * ls.dx;
 
     for (index_t i = 0; i < ls.Nx; ++i) {
         for (index_t j = 0; j < ls.Ny; ++j) {
@@ -719,8 +725,14 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
                     scalar_t d = -(_H0.data[0] * _H1.data[1] * _H2.data[2] + _H0.data[1] * _H1.data[2] * _H2.data[0] + _H0.data[2] *_H1.data[0] * _H2.data[1]) +
                     (_H0.data[2] * _H1.data[1] * _H2.data[0] + _H0.data[0] * _H1.data[2] * _H2.data[1] + _H0.data[1] * _H1.data[0] * _H2.data[2]);
 
-                    ls_point curvatures = ls.find_root(b, c, d);
-                    scalar_t rho = 1.0 + 0.5 * ( curvatures.data[1] + curvatures.data[2] ) * dist + ( curvatures.data[1] * curvatures.data[2] ) * SQR( dist ) ;
+                    ls_point _curvatures = ls.find_root(b, c, d);
+
+                    curvatures.push_back(_curvatures.data[1] / (1 - dist * _curvatures.data[1] ));
+                    curvatures.push_back(_curvatures.data[2] / (1 - dist * _curvatures.data[2] ));
+
+                    scalar_t rho = (1 - dist * _curvatures.data[1] ) * (1 - dist * _curvatures.data[2] ) ;
+
+
                     /*
                      * calculates the weight according to the distance.
                      *
@@ -729,7 +741,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
                      * 3. infinitely smooth weight
                      *
                      */
-                    weight.push_back(rho * 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
+                    weights.push_back(rho * 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
                     // weight.push_back(0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
 
                 }
