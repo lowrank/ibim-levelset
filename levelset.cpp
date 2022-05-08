@@ -418,10 +418,16 @@ void levelset::setGradient(index_t dir, scalar_t *window, ls_point &uxp, ls_poin
 }
 
 /// setHessian 
-/// \param _l: left vector
-/// \param _m: center vector
-/// \param _r: right vector
-/// \param H: Hessian entries (0, dir) (1, dir) (2, dir)
+/// \param g : grid
+/// \param window: temporary window array
+/// \param dir: derivative direction, 0, 1, 2 for x, y, z.
+/// \param i: x index
+/// \param j: y index 
+/// \param k: z index  
+/// \param _Dun: temporary array
+/// \param _Dup: temporary array
+/// \param _m: gradient in the center node
+/// \param H: Hessian matrix.
 void levelset::setHessian(
     Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k,
     ls_point& _Dun, ls_point& _Dup,
@@ -457,10 +463,11 @@ void levelset::setHessian(
         b = _r.data[_dir] - _m.data[_dir];
 
         if (a * b > 0) {
+            // if same sign, use high order approximation.
             H.data[_dir] = 0.5 * (a + b) / dx;
         }
         else {
-            // select smaller magitude
+            // select smaller magitude if with different sign.
             H.data[_dir] = (fabs(a) > fabs(b) ? b : a) / dx ;
         }
     }    
@@ -511,7 +518,11 @@ index_t levelset::countGradient(Grid &g, scalar_t thickness, scalar_t thres, sca
     return indices;
 }
 
-
+/// find_root for x^3 +  b x^2 + c x + d.
+/// \param b : scalar
+/// \param c : scalar
+/// \param d : scalar
+/// \return ls_point : roots sorted ascending order.
 ls_point levelset::find_root(scalar_t b, scalar_t c, scalar_t d) {
     ls_point roots;
     scalar_t eps = 1e-8;
