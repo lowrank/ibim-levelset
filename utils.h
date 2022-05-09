@@ -22,6 +22,7 @@
 #include <chrono>
 #include <iomanip>
 #include "./contrib/include/cblas.h"
+#include "./contrib/include/lapacke.h"
 
 #if !defined __extern_always_inline && defined __clang__
 # if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
@@ -42,6 +43,7 @@
 #define DIM 3 /* 3D FMM, do not change */
 
 #define SQR(X) ((X)*(X))
+#define ENERGY_CONST  (4172.83566)
 
 #ifdef DISP
 #define RUN(s, func){ \

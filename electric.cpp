@@ -30,7 +30,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
                     surf.nodes[id].data[2]/rescale
                 }
         );
-        weight.push_back(surf.weight[id] * rescale * dx * SQR(dx));
+        weight.push_back(surf.weights[id] * rescale * dx * SQR(dx));
 
         /*
          * normal vectors do not rescale.
@@ -58,6 +58,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
     scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
 
     scalar_t area = std::accumulate(weight.begin(), weight.end(), 0.);
+
     std::cout << std::setw(15)<< "AREA APPROX" << " " << std::setw(8)<< area << " A^2" <<std::fixed<<std::endl;
 
 
@@ -488,6 +489,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
     Vector energy(mol.N); setValue(energy, 0.);
     energy = polarizeMap(source, target_centers, weight, normalX, normalY, normalZ, start);
 
+
     std::ofstream energyFile;
     energyFile.open(cfg.options["energy_file"]);
 
@@ -496,20 +498,13 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
     }
     energyFile.close();
 
+
     scalar_t polarizedEnergy = 0.;
     for (auto id = 0; id < energy.row(); ++id) {
         polarizedEnergy += energy(id) * mol.charges[id];
     }
     polarizedEnergy *= 0.5;
 
-    std::cout << "polarized energy: " << std::setw(20) << std::scientific <<polarizedEnergy <<std::fixed << std::endl;
+    std::cout << "polarized energy: " << std::setw(20) << std::scientific <<polarizedEnergy * ENERGY_CONST <<std::fixed << " kcal/mol" << std::endl;
 
 }
-
-// eps   8.85418782 × 10**-12 m-3 kg-1 s4 A2
-// e     1.60217663 × 10**-19 
-// mol   6.02214076×10**23 
-// kcal  4184 kg m2/s2
-// A     10**-10 m
-
-// e^2/eps/A * mol / kcal = 4.17283566 x 10**3

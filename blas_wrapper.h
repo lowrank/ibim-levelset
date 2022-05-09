@@ -66,7 +66,7 @@ void dgemv(scalar_t alpha, Matrix &A, Vector &x, scalar_t beta, Vector &y) ;
 void dgemv_t(scalar_t alpha, Matrix &A, Vector &x, scalar_t beta, Vector &y) ;
 
 /*
- * hadamard product
+ * hadmard product, diagonal A.
  */
 void dsbmv(scalar_t alpha, Vector &A, Vector &x, scalar_t beta, Vector &y) ;
 

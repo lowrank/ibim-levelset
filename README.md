@@ -11,3 +11,6 @@
 There is an example config file in ``./data`` directory. Setting the numeric values and run with
 - ./levelset ../data/input.cfg
 
+## For Developments 
+- All matrices are COL_MAJOR.
+

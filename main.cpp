@@ -35,33 +35,31 @@ int main(int argc, char* argv[]) {
     mol.getCenter();
     scalar_t pr = 1.4 * s;
 
-
     scalar_t grid_lo = -300.0, grid_hi = 300;
     index_t size = atoi(cfg.options["grid_size"].c_str());
     scalar_t dx = (grid_hi - grid_lo) / scalar_t(size);
 
     std::cout << std::setw(15) << "h" << " " << std::setw(8) << dx / s << " Angstroms" << std::endl;
+    std::cout << std::setw(15) << "s" << " " << std::setw(8) << s << " Rescale" << std::endl;
 
 
-    levelset ls(size, size, size, 8, grid_lo, grid_lo, grid_lo, dx, cfg);
+    levelset ls(size, size, size, 11, grid_lo, grid_lo, grid_lo, dx, cfg);
 
     Grid g(-2.0 * size, ls.Nx, ls.Ny, ls.Nz);
     Grid phi0(0., ls.Nx, ls.Ny, ls.Nz);
 
     RUN("EXPAND", ls.expand(mol, g, pr));
-    RUN("INWARD", ls.evolve(g, 1.4, s, 0.1));
+    RUN("INWARD", ls.evolve(g, 1.4, s, 0.2));
 
+    // flip the sign. Outside is positive, then gradients are pointing outside.
     g *= -1.0;
     phi0 = g;
 
-    RUN("REINIT 1st", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.25));
+    RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
 
-    phi0 = g;
-
-    RUN("REINIT 2nd", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.25));
+    ls.setInclusion(g);
 
     Surface surf(g, ls, s);
-
 
 #ifdef GRID
     g.output("../data/output.grid");

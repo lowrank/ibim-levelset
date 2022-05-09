@@ -19,7 +19,8 @@
 
 
 #include "utils.h"
-#include "blas_wraper.h"
+#include "blas_wrapper.h"
+#include "lapacke_wrapper.h"
 
 namespace bbfmm {
     class basePoint {

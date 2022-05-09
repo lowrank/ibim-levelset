@@ -7,12 +7,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -DRUN_OMP -march=native -
 find_package(GLUT)
 
 if (GLUT_FOUND)
-    set(SOURCE_FILES main.cpp levelset.cpp levelset.h utils.h molecule.h ls_point.h view.h view.cpp linalg.h blas_wraper.h gmres.h bbfmm.h bbfmm.cpp blas_wraper.cpp electric.cpp gmres.cpp Config.cpp Config.h)
+    set(SOURCE_FILES main.cpp levelset.cpp levelset.h utils.h molecule.h ls_point.h view.h view.cpp linalg.h blas_wrapper.h lapacke_wrapper.h gmres.h bbfmm.h bbfmm.cpp blas_wrapper.cpp lapacke_wrapper.cpp electric.cpp gmres.cpp Config.cpp Config.h)
     add_executable(levelset ${SOURCE_FILES})
-    target_link_libraries(levelset m GL GLU glut ${CMAKE_SOURCE_DIR}/contrib/lib/libopenblas.a)
+    target_link_libraries(levelset m GL GLU glut gfortran ${CMAKE_SOURCE_DIR}/contrib/lib/libopenblas.a)
 else ()
-    set(SOURCE_FILES main.cpp levelset.cpp levelset.h utils.h molecule.h ls_point.h linalg.h blas_wraper.h gmres.h bbfmm.h bbfmm.cpp blas_wraper.cpp electric.cpp gmres.cpp Config.cpp Config.h)
+    set(SOURCE_FILES main.cpp levelset.cpp levelset.h utils.h molecule.h ls_point.h linalg.h blas_wrapper.h lapacke_wrapper.h gmres.h bbfmm.h bbfmm.cpp blas_wrapper.cpp lapacke_wrapper.cpp electric.cpp gmres.cpp Config.cpp Config.h)
     add_executable(levelset ${SOURCE_FILES})
-    target_link_libraries(levelset m ${CMAKE_SOURCE_DIR}/contrib/lib/libopenblas.a)
+    target_link_libraries(levelset m gfortran ${CMAKE_SOURCE_DIR}/contrib/lib/libopenblas.a)
 endif ()
 

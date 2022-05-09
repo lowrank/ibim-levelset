@@ -99,7 +99,7 @@ void levelset::expand(Molecule &mol, Grid &g, scalar_t probe) {
             for (int b = icy - r; b <= icy + r; ++b) {
                 for (int c = icz - r; c<= icz + r; ++c) {
                     ls_point grid_p = {sx + a * dx, sy + b * dx, sz + c * dx};
-                    scalar_t dist = (mol.radii[aId] + probe) - norm(grid_p - mol.centers[aId]) ;
+                    scalar_t dist = (mol.radii[aId] + probe) - norm(grid_p - mol.centers[aId]);
                     dist = max(dist, g.get(a, b,c));
                     g.set(dist, a, b, c);
                 }
@@ -125,7 +125,7 @@ void levelset::evolve(Grid &g, scalar_t final_t, scalar_t vel, scalar_t cfl_thre
     auto core = omp_get_max_threads();
     omp_set_num_threads(core);
 
-    double* window = (double*)malloc((core)*DIM * shift * sizeof(double));
+    scalar_t* window = (scalar_t*)malloc((core)*DIM * shift * sizeof(scalar_t));
 
     for (step = 0; step < num_steps; ++step) {
 #pragma omp parallel for private(Dup, Dun) schedule(static, CHUNK) collapse(3) num_threads(core)
@@ -205,7 +205,7 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
     auto core = omp_get_max_threads();
     omp_set_num_threads(core);
 
-    double* window = (double*)malloc((core)*DIM * shift * sizeof(double));
+    scalar_t* window = (scalar_t*)malloc((core)*DIM * shift * sizeof(scalar_t));
 
     int indices = 0;
 
@@ -226,8 +226,8 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         setGradient(dir, window + tid * DIM * shift, Dup, Dun);
                     }
 
-                    double sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    double normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                     u1.data[I] = g.data[I] - dt * vel * sign * (normDu - 1.0);
                 }
@@ -247,8 +247,8 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         setGradient(dir,window+ tid * DIM * shift, Dup, Dun);
                     }
 
-                    double sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    double normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                     u2.data[I] = (3 * g.data[I] + u1.data[I] - dt * vel * sign *  (normDu - 1.0)) / 4.0;
                 }
@@ -268,8 +268,8 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         setGradient(dir, window+ tid * DIM * shift, Dup, Dun);
                     }
 
-                    double sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    double normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                     g.data[I] =( g.data[I] + 2 * (u2.data[I] - dt * vel * sign *  (normDu - 1.0)) ) / 3.0;
                 }
@@ -292,12 +292,42 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
 /// \param Dup : input forward gradient vector.
 /// \return : norm
 scalar_t levelset::getNorm(ls_point &Dun, ls_point &Dup) {
+    // should not modify values.
     scalar_t val = 0.;
     for (int i = 0; i < DIM; ++i) {
-        Dun.data[i] = max((Dun.data[i] > 0. ? Dun.data[i] : 0.), (Dup.data[i] < 0. ? -Dup.data[i] : 0.));
-        val += SQR(Dun.data[i]);
+        val += SQR(max((Dun.data[i] > 0. ? Dun.data[i] : 0.), (Dup.data[i] < 0. ? -Dup.data[i] : 0.)) );
     }
     return sqrt(val);
+}
+
+
+/// getVec
+/// \param Dun : input backward gradient vector.
+/// \param Dup : input forward gradient vector.
+/// \return : ls_point
+ls_point levelset::getVec(ls_point &Dun, ls_point &Dup) {
+    ls_point vec;
+    for (int i = 0; i < DIM; ++i) {
+        bool neg_pos = (Dun.data[i] > 0.);
+        bool pos_neg = (Dup.data[i] < 0.);
+        if (neg_pos) {
+            if (pos_neg) {
+                vec.data[i] = Dun.data[i] + Dup.data[i] > 0 ? Dun.data[i] : Dup.data[i];
+            }
+            else {
+                vec.data[i] = Dun.data[i]; // both positive
+            }
+        }
+        else {
+            if (pos_neg) {
+                vec.data[i] = Dup.data[i]; // both negative
+            }
+            else {
+                vec.data[i] = 0.;
+            }
+        }
+    }
+    return vec;
 }
 
 /// setWindow
@@ -322,7 +352,7 @@ void levelset::setWindow(Grid &g, scalar_t *window, index_t i, index_t j, index_
     }
 }
 
-/// setGradient
+/// setGradient (WENO 5)
 /// \param dir : input axis, 0, 1, 2 for x, y, z.
 /// \param window : window pointer.
 /// \param uxp : output forward gradient
@@ -387,6 +417,62 @@ void levelset::setGradient(index_t dir, scalar_t *window, ls_point &uxp, ls_poin
     uxn.data[dir] /= dx;
 }
 
+/// setHessian 
+/// \param g : grid
+/// \param window: temporary window array
+/// \param dir: derivative direction, 0, 1, 2 for x, y, z.
+/// \param i: x index
+/// \param j: y index 
+/// \param k: z index  
+/// \param _Dun: temporary array
+/// \param _Dup: temporary array
+/// \param _m: gradient in the center node
+/// \param H: Hessian matrix.
+void levelset::setHessian(
+    Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k,
+    ls_point& _Dun, ls_point& _Dup,
+    ls_point& _m, ls_point& H) {
+
+    ls_point _l, _r;
+    scalar_t a, b, dist;
+
+    if (dir == 0) {
+        dist = g.get(i-1, j, k);
+        _l = getGradient(g, window, i-1, j, k, dist, _Dun, _Dup);
+        dist = g.get(i+1, j, k);
+        _r = getGradient(g, window, i+1, j, k, dist, _Dun, _Dup);
+    }
+    else if (dir == 1) {
+        dist = g.get(i, j-1, k);
+        _l = getGradient(g, window, i, j-1, k, dist, _Dun, _Dup);
+        dist = g.get(i, j+1, k);
+        _r = getGradient(g, window, i, j+1, k, dist, _Dun, _Dup);        
+    }
+    else {
+        dist = g.get(i, j, k-1);
+        _l = getGradient(g, window, i, j, k-1, dist, _Dun, _Dup);
+        dist = g.get(i, j, k+1);
+        _r = getGradient(g, window, i, j, k+1, dist, _Dun, _Dup);            
+    }
+
+
+    for (index_t _dir = 0; _dir < DIM; _dir++) {
+        // along each direction, differentiate dir.
+
+        a = _m.data[_dir] - _l.data[_dir];
+        b = _r.data[_dir] - _m.data[_dir];
+
+        if (a * b > 0) {
+            // if same sign, use high order approximation.
+            H.data[_dir] = 0.5 * (a + b) / dx;
+        }
+        else {
+            // select smaller magitude if with different sign.
+            H.data[_dir] = (fabs(a) > fabs(b) ? b : a) / dx ;
+        }
+    }    
+}
+
 /// countGradient
 /// \param g grid
 /// \param thickness tube layer number
@@ -405,14 +491,15 @@ index_t levelset::countGradient(Grid &g, scalar_t thickness, scalar_t thres, sca
     for (index_t i = 0; i < Nx; ++i) {
         for (index_t j = 0; j < Ny; ++j) {
             for (index_t k= 0; k < Nz; ++k) {
-                if ( fabs(g.get(i, j, k)) < thickness * dx ) {
+                scalar_t d = g.get(i, j, k);
+                if ( fabs(d) < thickness * dx ) {
                     total++;
                     setWindow(g, _window, i, j, k);
                     for (index_t dir = 0; dir < DIM; ++dir) {
                         setGradient(dir, _window, _Dup, _Dun);
                     }
 
-                    scalar_t nr = getNorm(_Dun, _Dup);
+                    scalar_t nr = d > 0 ? getNorm(_Dun, _Dup):getNorm(_Dup, _Dun);
 
                     if (fabs(nr - 1.0) > thres) {
                             indices++;
@@ -431,17 +518,61 @@ index_t levelset::countGradient(Grid &g, scalar_t thickness, scalar_t thres, sca
     return indices;
 }
 
-/// build surface, remove inclusions.
-/// \param g
-/// \param ls
-Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
+/// find_root for x^3 +  b x^2 + c x + d.
+/// \param b : scalar
+/// \param c : scalar
+/// \param d : scalar
+/// \return ls_point : roots sorted ascending order.
+ls_point levelset::find_root(scalar_t b, scalar_t c, scalar_t d) {
+    ls_point roots;
+    scalar_t eps = 1e-8;
 
-    ls_point _Dun, _Dup;
+    scalar_t p = (3 * c - SQR(b)) / 3.0;
+    scalar_t q = (2 * SQR(b) * b - 9 * b * c + 27 * d) / 27.0;
+    scalar_t C = sqrt(-p / 3.0);
+    scalar_t t = 3 * q / (2 * p * C);
 
-    scalar_t* _window =  (double*)malloc(DIM * ls.shift * sizeof(double));
-    scalar_t tube_width = ls.thickness * ls.dx;
+    if (fabs(t) > 1) { // avoid numerical instability
+        t = t > 0 ? 1:-1;
+    }
+    roots.data[0] = 2 * C * cos( acos (t) / 3  ) - b/3.0;
+    roots.data[1] = 2 * C * cos( acos (t) / 3 - 2 * M_PI / 3 ) - b/3.0;
+    roots.data[2] = 2 * C * cos( acos (t) / 3 - 4 * M_PI / 3 ) - b/3.0;
 
-    vector<short> visited((unsigned long) (ls.Nx * ls.Ny * ls.Nz), 0);
+    std::sort(roots.data, roots.data + 3);
+
+    return roots;
+}
+
+/// getGradient
+/// \param g grid
+/// \param g : input grid
+/// \param window : window pointer
+/// \param i : input x axis
+/// \param j : input y axis
+/// \param k : input z axis
+/// \param dist: signed distance
+/// \param Dun: ls_point 
+/// \param Dup: ls_point
+/// \return ls_point
+ls_point levelset::getGradient( Grid& g, scalar_t* window, index_t i, index_t j, index_t k, scalar_t dist, ls_point &Dun, ls_point &Dup ) {
+    ls_point _n;
+    scalar_t eps=1e-10;
+    setWindow(g, window, i, j, k);
+    for (index_t dir = 0; dir < DIM; ++dir) {
+        setGradient(dir, window, Dup, Dun);
+    }
+    _n = dist > 0 ? getVec(Dun, Dup) : getVec(Dup, Dun);
+    _n = _n * (1.0/(norm(_n)+eps));
+    return _n;
+}
+
+
+void levelset::setInclusion(Grid& g) {
+
+    scalar_t tube_width = thickness * dx;
+
+    vector<short> visited((unsigned long) (Nx * Ny * Nz), 0);
 
     queue<int> Queue;
     Queue.push(0);
@@ -452,9 +583,9 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
         Queue.pop();
 
-        int I = cur_index / (ls.Ny * ls.Nz);
-        int J = cur_index / ls.Nz - I * ls.Ny;
-        int K = cur_index % ls.Nz;
+        int I = cur_index / (Ny * Nz);
+        int J = cur_index / Nz - I * Ny;
+        int K = cur_index % Nz;
         /*
          * 6 directions to go
          */
@@ -463,8 +594,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cI = I + 1;
         cJ = J;
         cK = K;
-        if (cI <= ls.Nx - 1) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+        if (cI <= Nx - 1) {
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -475,7 +606,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cJ = J;
         cK = K;
         if (cI >= 0) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -484,8 +615,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cI = I;
         cJ = J + 1;
         cK = K;
-        if (cJ <= ls.Ny - 1) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+        if (cJ <= Ny - 1) {
+            next_index = cI *Ny *Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -495,7 +626,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cJ = J - 1;
         cK = K;
         if (cJ >= 0) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -504,8 +635,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cI = I;
         cJ = J;
         cK = K + 1;
-        if (cK <= ls.Nz - 1) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+        if (cK <=Nz - 1) {
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -515,7 +646,7 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
         cJ = J;
         cK = K - 1;
         if (cK >= 0) {
-            next_index = cI * ls.Ny * ls.Nz + cJ * ls.Nz + cK;
+            next_index = cI * Ny * Nz + cJ * Nz + cK;
             if (!visited[next_index] && g.data[cur_index] > -tube_width) {
                 visited[next_index] = 1;
                 Queue.push(next_index);
@@ -528,54 +659,90 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
      */
     auto inclusion_value = -(tube_width + 1e-15);
     int cnt = 0;
-    for (index_t id = 0; id < ls.Nx * ls.Ny * ls.Nz; ++id) {
+    for (index_t id = 0; id <Nx *Ny * Nz; ++id) {
         if (!visited[id] && fabs(g.data[id]) < tube_width) {
             g.data[id] = inclusion_value;
             cnt++;
         }
     }
     std::cout << std::setw(15) << "INCLUSION" << " " << std::setw(8) << cnt << std::endl;
+}
 
+
+/// build surface, remove inclusions.
+/// \param g
+/// \param ls
+Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
+
+    ls_point _Dun, _Dup;
+    ls_point m_n, l_n, r_n, _H0, _H1, _H2;
+
+    scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
+    scalar_t tube_width = ls.thickness * ls.dx;
 
     for (index_t i = 0; i < ls.Nx; ++i) {
         for (index_t j = 0; j < ls.Ny; ++j) {
             for (index_t k= 0; k < ls.Nz; ++k) {
-                if ( fabs(g.get(i, j, k)) <  tube_width) {
-                    ls.setWindow(g, _window, i, j, k);
-                    for (index_t dir = 0; dir < DIM; ++dir) {
-                        ls.setGradient(dir, _window, _Dup, _Dun);
-                    }
-
-                    /*
-                     * current gradient is qualified.
-                     */
-                    _Dun = (_Dun + _Dup) * 0.5;
+                scalar_t dist = g.get(i, j, k);
+                if ( fabs(dist) <  tube_width) {
+                    m_n = ls.getGradient(g, _window, i, j, k, dist, _Dun, _Dup);
 
                     ls_point P = {
                             ls.sx + i * ls.dx,
                             ls.sy + j * ls.dx,
                             ls.sz + k * ls.dx
                     };
-
-                    scalar_t dist = g.get(i, j, k);
                     /*
                      * projection
                      */
-                    P = P - _Dun * dist;
+                    P = P - m_n * dist;
 
                     nodes.push_back(P);
-                    normals.push_back(_Dun);
+                    normals.push_back(m_n);
+
+
+
+                    /*
+                     * compute the nearby gradients for Hessian.
+                     */
+                    ls.setHessian(g, _window, 0, i, j, k, _Dun, _Dup, m_n, _H0);
+                    ls.setHessian(g, _window, 1, i, j, k, _Dun, _Dup, m_n, _H1);
+                    ls.setHessian(g, _window, 2, i, j, k, _Dun, _Dup, m_n, _H2);
+
+                    // symmetrize the Hessian matrix
+                    _H0.data[1] = 0.5 * (_H0.data[1] + _H1.data[0]);
+                    _H1.data[0] = _H0.data[1];
+
+                    _H0.data[2] = 0.5 * (_H0.data[2] + _H2.data[0]);
+                    _H2.data[0] = _H0.data[2];
+
+                    _H1.data[2] = 0.5 * (_H1.data[2] + _H2.data[1]);
+                    _H2.data[1] = _H1.data[2];
+
+                    scalar_t b = -(_H0.data[0] + _H1.data[1] + _H2.data[2]);
+                    scalar_t c = (_H0.data[0] * _H1.data[1] + _H1.data[1] * _H2.data[2] + _H2.data[2] * _H0.data[0]) - 
+                    (_H0.data[1] * _H1.data[0] + _H1.data[2] * _H2.data[1] + _H2.data[0] * _H0.data[2]);
+                    scalar_t d = -(_H0.data[0] * _H1.data[1] * _H2.data[2] + _H0.data[1] * _H1.data[2] * _H2.data[0] + _H0.data[2] *_H1.data[0] * _H2.data[1]) +
+                    (_H0.data[2] * _H1.data[1] * _H2.data[0] + _H0.data[0] * _H1.data[2] * _H2.data[1] + _H0.data[1] * _H1.data[0] * _H2.data[2]);
+
+                    ls_point _curvatures = ls.find_root(b, c, d);
+
+                    curvatures.push_back(_curvatures.data[1] / (1 - dist * _curvatures.data[1] ));
+                    curvatures.push_back(_curvatures.data[2] / (1 - dist * _curvatures.data[2] ));
+
+                    scalar_t rho = (1 - dist * _curvatures.data[1] ) * (1 - dist * _curvatures.data[2] ) ;
+
+
                     /*
                      * calculates the weight according to the distance.
                      *
-                     * 1. cos weight.
-                     * 2. triangle weight
+                     * 1. cos weight : 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width
+                     * 2. triangle weight : (1.0 - fabs(dist)/tube_width)/tube_width
                      * 3. infinitely smooth weight
                      *
                      */
-                    weight.push_back(0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
-//                    weight.push_back((1.0 - fabs(dist)/tube_width)/tube_width);
-
+                    weights.push_back(rho * 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
+                    // weight.push_back(0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
 
                 }
             }
