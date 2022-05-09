@@ -22,6 +22,7 @@
 #include <chrono>
 #include <iomanip>
 #include "./contrib/include/cblas.h"
+#include "./contrib/include/lapacke.h"
 
 #if !defined __extern_always_inline && defined __clang__
 # if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__

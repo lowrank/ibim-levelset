@@ -2,7 +2,7 @@
 // Created by lurker on 3/23/17.
 //
 
-#include "blas_wraper.h"
+#include "blas_wrapper.h"
 
 using namespace bbfmm;
 /*

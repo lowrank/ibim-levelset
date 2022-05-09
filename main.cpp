@@ -29,11 +29,6 @@ int main(int argc, char* argv[]) {
 
     cfg.print();
 
-    // load weights
-    // std::ifstream inputFile{"../weights/w.txt"};
-    // std::vector<scalar_t> test;
-    // inputFile >> test;
-
     Molecule mol; mol.load(cfg.options["pqr_file"]);
 
     scalar_t s = mol.centralize(240.0);

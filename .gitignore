@@ -93,3 +93,4 @@ data/
 build/
 contrib/
 weights/
+tests/

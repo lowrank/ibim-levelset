@@ -5,7 +5,7 @@
 #ifndef LEVELSET_GMRES_H
 #define LEVELSET_GMRES_H
 
-#include "blas_wraper.h"
+#include "blas_wrapper.h"
 
 inline void
 Update(Vector &x, int k, Matrix &h, Vector &s, Vector v[]) ;
