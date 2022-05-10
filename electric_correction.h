@@ -15,7 +15,18 @@ using namespace bbfmm;
 void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg);
 
 
-/// auxiliary functions
+/* ***********************************
+ *
+ *
+ *        auxiliary functions
+ *
+ *
+ * ***********************************/
+
+// biquintic interpolation
 scalar_t biquintic_interpolation(Vector& X, Vector& Y, Matrix &wXY, Vector& xy);
+
+// write file into vector
 std::istream& operator>> (std::istream& in, std::vector<double>& v);
+
 #endif //LEVELSET_ELECTRIC_CORRECT_H

@@ -34,7 +34,7 @@ scalar_t biquintic_interpolation(Vector& X, Vector& Y, Matrix &wXY, Vector& xy) 
     return ddot(_x, tmp);
 }
 
-/// write file.
+/// write into vector.
 std::istream& operator>> (std::istream& in, std::vector<double>& v) {
     double d;
     while (in >> d) {
@@ -50,6 +50,51 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
     std::ifstream inputFile{"../weights/w.txt"};
     std::vector<double> single_correction_weights;
     inputFile >> single_correction_weights;
+
+    vector<point> source, target;
+    vector<scalar_t > weight, normalX, normalY, normalZ;
+    vector<scalar_t > curvatures;
+
+    scalar_t dx = ls.dx / rescale;
+    /*
+     * map all points back to the actual protein surface.
+     */
+    for (index_t id = 0; id < surf.nodes.size(); ++id) {
+        source.push_back(
+                {
+                    surf.nodes[id].data[0]/rescale,
+                    surf.nodes[id].data[1]/rescale,
+                    surf.nodes[id].data[2]/rescale
+                }
+        );
+
+        target.push_back(
+                {
+                    surf.nodes[id].data[0]/rescale,
+                    surf.nodes[id].data[1]/rescale,
+                    surf.nodes[id].data[2]/rescale
+                }
+        );
+        weight.push_back(surf.weights[id] * rescale * dx * SQR(dx));
+
+        /*
+         * normal vectors do not rescale.
+         */
+        normalX.push_back(surf.normals[id].data[0]);
+        normalY.push_back(surf.normals[id].data[1]);
+        normalZ.push_back(surf.normals[id].data[2]);
+
+        curvatures.push_back(surf.curvatures[2 * id] * rescale);
+        curvatures.push_back(surf.curvatures[2 * id + 1] * rescale);
+
+    }
+
+    std::cout << std::setw(15) <<"POINTS NUM"  << " " << std::setw(8) << source.size() << std::endl;
+
+
+
+    
+
 
 }
 

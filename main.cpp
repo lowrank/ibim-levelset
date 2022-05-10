@@ -55,11 +55,21 @@ int main(int argc, char* argv[]) {
     g *= -1.0;
     phi0 = g;
 
-    RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
+    // if a point is far, the distance is fixed explicitly.
+    // RUN("PRESET", ls.setExterior(mol, g, pr));
+
+    // only reinitialization on nearby points.
+    RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5, pr));
 
     ls.setInclusion(g);
 
-    Surface surf(g, ls, s);
+
+    /*
+     *  surface information.
+     *
+     */
+
+    Surface surf(g, ls, ls.thickness * ls.dx);
 
 #ifdef GRID
     g.output("../data/output.grid");

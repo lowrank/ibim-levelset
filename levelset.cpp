@@ -187,8 +187,32 @@ void levelset::evolve(Grid &g, scalar_t final_t, scalar_t vel, scalar_t cfl_thre
 }
 
 
+// void levelset::setExterior(Molecule& mol, Grid &g, scalar_t probe) {
+//     for (index_t aId = 0; aId < (index_t)mol.centers.size();++aId) {
+//         int r = (int)((mol.radii[aId] + probe)/dx) + bandwidth;
+//         int icx = (int)((mol.centers[aId].data[0] - sx) / dx);
+//         int icy = (int)((mol.centers[aId].data[1] - sy) / dx);
+//         int icz = (int)((mol.centers[aId].data[2] - sz) / dx);
+// #pragma omp parallel for schedule(static) collapse(3) num_threads(4)
+//         for (int a = icx - r; a <= icx + r; ++a) {
+//             for (int b = icy - r; b <= icy + r; ++b) {
+//                 for (int c = icz - r; c<= icz + r; ++c) {
+//                     ls_point grid_p = {sx + a * dx, sy + b * dx, sz + c * dx};
+//                     scalar_t dist = norm(grid_p - mol.centers[aId]) -  (mol.radii[aId]) ;
+//                     dist = min(dist, g.get(a, b,c));
+//                     if (fabs(dist) > probe) {
+//                         g.set(dist, a, b, c);
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
-void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres) {
+
+
+
+void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres, scalar_t pr) {
     scalar_t dt = cfl_thres * dx / vel;
     scalar_t eps = dx * dx; //todo:
     index_t num_steps = (index_t)(final_t / dt) + 1;
@@ -198,6 +222,9 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
 
     Grid u1(Nx, Ny, Nz);
     Grid u2(Nx, Ny, Nz);
+
+    u1 = g; // for exterior values. 
+    u2 = g;
 
     index_t step = 0;
     ls_point Dup, Dun;
@@ -217,19 +244,21 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
         for (index_t i = 0; i < Nx; ++i) {
             for (index_t j = 0; j < Ny; ++j) {
                 for (index_t k = 0; k < Nz; ++k) {
-                    index_t I = i * Ny * Nz + j * Nz + k;
-                    index_t tid = omp_get_thread_num();
 
-                    setWindow(g, window + tid * DIM * shift, i, j, k);
+                        index_t I = i * Ny * Nz + j * Nz + k;
+                        index_t tid = omp_get_thread_num();
 
-                    for (index_t dir = 0; dir < DIM; ++dir) {
-                        setGradient(dir, window + tid * DIM * shift, Dup, Dun);
-                    }
+                        setWindow(g, window + tid * DIM * shift, i, j, k);
 
-                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                        for (index_t dir = 0; dir < DIM; ++dir) {
+                            setGradient(dir, window + tid * DIM * shift, Dup, Dun);
+                        }
 
-                    u1.data[I] = g.data[I] - dt * vel * sign * (normDu - 1.0);
+                        scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                        scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+
+                        u1.data[I] = g.data[I] - dt * vel * sign * (normDu - 1.0);
+
                 }
             }
         }
@@ -238,19 +267,21 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
         for (index_t i = 0; i < Nx; ++i) {
             for (index_t j = 0; j < Ny; ++j) {
                 for (index_t k = 0; k < Nz; ++k) {
-                    index_t I = i * Ny * Nz + j * Nz + k;
-                    index_t tid = omp_get_thread_num();
 
-                    setWindow(u1, window+ tid * DIM * shift, i, j, k);
+                        index_t I = i * Ny * Nz + j * Nz + k;
+                        index_t tid = omp_get_thread_num();
 
-                    for (index_t dir = 0; dir < DIM; ++dir) {
-                        setGradient(dir,window+ tid * DIM * shift, Dup, Dun);
-                    }
+                        setWindow(u1, window+ tid * DIM * shift, i, j, k);
 
-                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                        for (index_t dir = 0; dir < DIM; ++dir) {
+                            setGradient(dir,window+ tid * DIM * shift, Dup, Dun);
+                        }
 
-                    u2.data[I] = (3 * g.data[I] + u1.data[I] - dt * vel * sign *  (normDu - 1.0)) / 4.0;
+                        scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                        scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+
+                        u2.data[I] = (3 * g.data[I] + u1.data[I] - dt * vel * sign *  (normDu - 1.0)) / 4.0;
+
                 }
             }
         }
@@ -259,19 +290,21 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
         for (index_t i = 0; i < Nx; ++i) {
             for (index_t j = 0; j < Ny; ++j) {
                 for (index_t k = 0; k < Nz; ++k) {
-                    index_t I = i * Ny * Nz + j * Nz + k;
-                    index_t tid = omp_get_thread_num();
 
-                    setWindow(u2, window+ tid * DIM * shift, i, j, k);
+                        index_t I = i * Ny * Nz + j * Nz + k;
+                        index_t tid = omp_get_thread_num();
 
-                    for (index_t dir = 0; dir < DIM; ++dir) {
-                        setGradient(dir, window+ tid * DIM * shift, Dup, Dun);
-                    }
+                        setWindow(u2, window+ tid * DIM * shift, i, j, k);
 
-                    scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
-                    scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+                        for (index_t dir = 0; dir < DIM; ++dir) {
+                            setGradient(dir, window+ tid * DIM * shift, Dup, Dun);
+                        }
 
-                    g.data[I] =( g.data[I] + 2 * (u2.data[I] - dt * vel * sign *  (normDu - 1.0)) ) / 3.0;
+                        scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                        scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
+
+                        g.data[I] =( g.data[I] + 2 * (u2.data[I] - dt * vel * sign *  (normDu - 1.0)) ) / 3.0;
+
                 }
             }
         }
@@ -672,13 +705,13 @@ void levelset::setInclusion(Grid& g) {
 /// build surface, remove inclusions.
 /// \param g
 /// \param ls
-Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
+Surface::Surface(Grid &g, levelset &ls, scalar_t tube_width) {
 
     ls_point _Dun, _Dup;
     ls_point m_n, l_n, r_n, _H0, _H1, _H2;
 
     scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
-    scalar_t tube_width = ls.thickness * ls.dx;
+    // scalar_t tube_width = ls.thickness * ls.dx;
 
     for (index_t i = 0; i < ls.Nx; ++i) {
         for (index_t j = 0; j < ls.Ny; ++j) {
@@ -699,8 +732,6 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t s) {
 
                     nodes.push_back(P);
                     normals.push_back(m_n);
-
-
 
                     /*
                      * compute the nearby gradients for Hessian.

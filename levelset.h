@@ -50,7 +50,8 @@ public:
     ~levelset();
     void expand(Molecule& mol, Grid &g, scalar_t probe);
     void evolve(Grid& g, scalar_t final_t, scalar_t vel, scalar_t cfl_thres);
-    void reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres);
+    void reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres, scalar_t pr);
+    // void setExterior(Molecule& mol, Grid &g, scalar_t probe);
 
     void setWindow(Grid& g, scalar_t* window, index_t i, index_t j, index_t k);
     void setGradient(index_t dir, scalar_t* window, ls_point& uxp, ls_point& uxn);
@@ -71,7 +72,7 @@ public:
 
 class Surface {
 public:
-    Surface(Grid &g, levelset &ls, scalar_t s);
+    Surface(Grid &g, levelset &ls, scalar_t tube_width);
 
     ~Surface();
     vector<ls_point> nodes;
