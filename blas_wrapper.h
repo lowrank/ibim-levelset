@@ -75,8 +75,11 @@ void dsbmv(scalar_t alpha, Vector &A, Vector &x, scalar_t beta, Vector &y) ;
  */
 void dsbmv(scalar_t alpha, Vector &A, Vector &x, scalar_t beta, scalar_t *y) ;
 
+// 2-norm of vector.
 scalar_t nrm2(Vector &x) ;
 
 scalar_t ddot(Vector &x, Vector &y);
+
+void cross(Vector &x, Vector &y);
 
 #endif

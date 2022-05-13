@@ -3,6 +3,7 @@
 #define GRID
 #include <iostream>
 #include "electric.h"
+#include "electric_correction.h"
 
 #undef VIEW
 #undef GRID
@@ -41,7 +42,6 @@ int main(int argc, char* argv[]) {
 
     std::cout << std::setw(15) << "h" << " " << std::setw(8) << dx / s << " Angstroms" << std::endl;
     std::cout << std::setw(15) << "s" << " " << std::setw(8) << s << " Rescale" << std::endl;
-
 
     levelset ls(size, size, size, 11, grid_lo, grid_lo, grid_lo, dx, cfg);
 
@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
     v.run();
 #endif
 
-    electric(g, ls, surf, mol, s, cfg);
-
+    electric_correction(g, ls, surf, mol, s, cfg);
+    // electric(g, ls, surf, mol, s, cfg);
     return 0;
 }

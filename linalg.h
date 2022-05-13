@@ -273,6 +273,16 @@ namespace bbfmm {
             return &(_data[j * _row]);
         }
 
+        Matrix operator+(const scalar_t val);
+        Matrix operator+(Matrix& p);
+        Matrix operator+(Matrix&& p);
+        Matrix operator-(Matrix& p);
+        Matrix operator-(scalar_t val);
+        Matrix operator-(Matrix&& p);
+        Matrix operator*(scalar_t val);
+        Matrix operator*(Matrix& val) ;
+        Matrix operator*(Matrix&& val) ;
+
         int row() { return _row; }
 
         int col() { return _col; }

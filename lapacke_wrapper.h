@@ -21,4 +21,6 @@ void dgesv(Matrix& A, Vector& b, int* ipiv); // solve
 void dgesv(Matrix& A, Matrix& B, int* ipiv); // solve, overloaded.
 
 
+void dsyev(Matrix& A, Vector& w);// solve for both eigenvalue and eigevector.
+
 #endif 

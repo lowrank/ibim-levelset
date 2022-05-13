@@ -132,7 +132,7 @@ int GMRES(const std::function<Vector(Vector &)> A, Vector &x, Vector &b, int m, 
                 _tol = resid;
                 _max_iter = j;
 
-                std::cout << "=============== CONVERGED =============" << std::endl;
+                std::cout << "================= CONVERGED ================" << std::endl;
 
                 delete[] v;
                 return 0;
@@ -150,7 +150,7 @@ int GMRES(const std::function<Vector(Vector &)> A, Vector &x, Vector &b, int m, 
             _tol = resid;
             _max_iter = j;
 
-            std::cout << "=============== CONVERGED =============" << std::endl;
+            std::cout << "================= CONVERGED ================" << std::endl;
 
             delete[] v;
             return 0;
@@ -159,6 +159,6 @@ int GMRES(const std::function<Vector(Vector &)> A, Vector &x, Vector &b, int m, 
 
     _tol = resid;
     delete[] v;
-    std::cout << "============= NOT CONVERGED ===========" << std::endl;
+    std::cout << "=============== NOT CONVERGED ==============" << std::endl;
     return 1;
 }

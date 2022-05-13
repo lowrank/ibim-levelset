@@ -94,6 +94,13 @@ void levelset::expand(Molecule &mol, Grid &g, scalar_t probe) {
         int icx = (int)((mol.centers[aId].data[0] - sx) / dx);
         int icy = (int)((mol.centers[aId].data[1] - sy) / dx);
         int icz = (int)((mol.centers[aId].data[2] - sz) / dx);
+
+        if (icx + r >= Nx || icx - r < 0 || icy + r >= Ny || icy - r < 0 || icz + r >= Nz || icz - r < 0 ) {
+            std::cout << "Grid size too small..." << std::endl;
+            exit (EXIT_FAILURE);
+        }
+
+
 #pragma omp parallel for schedule(static) collapse(3) num_threads(4)
         for (int a = icx - r; a <= icx + r; ++a) {
             for (int b = icy - r; b <= icy + r; ++b) {
@@ -187,30 +194,27 @@ void levelset::evolve(Grid &g, scalar_t final_t, scalar_t vel, scalar_t cfl_thre
 }
 
 
-// void levelset::setExterior(Molecule& mol, Grid &g, scalar_t probe) {
-//     for (index_t aId = 0; aId < (index_t)mol.centers.size();++aId) {
-//         int r = (int)((mol.radii[aId] + probe)/dx) + bandwidth;
-//         int icx = (int)((mol.centers[aId].data[0] - sx) / dx);
-//         int icy = (int)((mol.centers[aId].data[1] - sy) / dx);
-//         int icz = (int)((mol.centers[aId].data[2] - sz) / dx);
-// #pragma omp parallel for schedule(static) collapse(3) num_threads(4)
-//         for (int a = icx - r; a <= icx + r; ++a) {
-//             for (int b = icy - r; b <= icy + r; ++b) {
-//                 for (int c = icz - r; c<= icz + r; ++c) {
-//                     ls_point grid_p = {sx + a * dx, sy + b * dx, sz + c * dx};
-//                     scalar_t dist = norm(grid_p - mol.centers[aId]) -  (mol.radii[aId]) ;
-//                     dist = min(dist, g.get(a, b,c));
-//                     if (fabs(dist) > probe) {
-//                         g.set(dist, a, b, c);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
-
-
+void levelset::setExterior(Molecule& mol, Grid &g, scalar_t probe) {
+    for (index_t aId = 0; aId < (index_t)mol.centers.size();++aId) {
+        int r = (int)((mol.radii[aId] + probe)/dx) + bandwidth;
+        int icx = (int)((mol.centers[aId].data[0] - sx) / dx);
+        int icy = (int)((mol.centers[aId].data[1] - sy) / dx);
+        int icz = (int)((mol.centers[aId].data[2] - sz) / dx);
+#pragma omp parallel for schedule(static) collapse(3) num_threads(4)
+        for (int a = icx - r; a <= icx + r; ++a) {
+            for (int b = icy - r; b <= icy + r; ++b) {
+                for (int c = icz - r; c<= icz + r; ++c) {
+                    ls_point grid_p = {sx + a * dx, sy + b * dx, sz + c * dx};
+                    scalar_t dist = norm(grid_p - mol.centers[aId]) -  (mol.radii[aId]) ;
+                    dist = min(dist, g.get(a, b,c));
+                    if (fabs(dist) > probe) {
+                        g.set(dist, a, b, c);
+                    }
+                }
+            }
+        }
+    }
+}
 
 void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres, scalar_t pr) {
     scalar_t dt = cfl_thres * dx / vel;
@@ -255,6 +259,7 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         }
 
                         scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+
                         scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                         u1.data[I] = g.data[I] - dt * vel * sign * (normDu - 1.0);
@@ -278,6 +283,7 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         }
 
                         scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+                        
                         scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                         u2.data[I] = (3 * g.data[I] + u1.data[I] - dt * vel * sign *  (normDu - 1.0)) / 4.0;
@@ -301,6 +307,7 @@ void levelset::reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel,
                         }
 
                         scalar_t sign = phi0.data[I] / (sqrt(SQR(phi0.data[I]) + eps));
+
                         scalar_t normDu = (sign > 0. ? getNorm(Dun, Dup) : getNorm(Dup, Dun));
 
                         g.data[I] =( g.data[I] + 2 * (u2.data[I] - dt * vel * sign *  (normDu - 1.0)) ) / 3.0;
@@ -373,6 +380,14 @@ void levelset::setWindow(Grid &g, scalar_t *window, index_t i, index_t j, index_
     index_t half = shift / 2;
     index_t _loc = 0;
     index_t xs = i - half, ys = j - half, zs = k - half;
+
+    assert(xs >= 0);
+    assert(xs + shift < g.Nx);
+    assert(ys >= 0);
+    assert(ys + shift < g.Ny);
+    assert(zs >= 0);
+    assert(zs + shift < g.Nz);
+
     for (index_t loc = 0; loc < shift; ++loc) {
         window[_loc++] = g.get(xs + loc, j, k);
     }
@@ -464,7 +479,7 @@ void levelset::setGradient(index_t dir, scalar_t *window, ls_point &uxp, ls_poin
 void levelset::setHessian(
     Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k,
     ls_point& _Dun, ls_point& _Dup,
-    ls_point& _m, ls_point& H) {
+    ls_point& _m, Matrix& H) {
 
     ls_point _l, _r;
     scalar_t a, b, dist;
@@ -497,11 +512,11 @@ void levelset::setHessian(
 
         if (a * b > 0) {
             // if same sign, use high order approximation.
-            H.data[_dir] = 0.5 * (a + b) / dx;
+            H(dir, _dir) = 0.5 * (a + b) / dx;
         }
         else {
             // select smaller magitude if with different sign.
-            H.data[_dir] = (fabs(a) > fabs(b) ? b : a) / dx ;
+            H(dir, _dir) = (fabs(a) > fabs(b) ? b : a) / dx ;
         }
     }    
 }
@@ -566,13 +581,16 @@ ls_point levelset::find_root(scalar_t b, scalar_t c, scalar_t d) {
     scalar_t t = 3 * q / (2 * p * C);
 
     if (fabs(t) > 1) { // avoid numerical instability
+#ifdef DEBUG
+        std::cout << "violating values of determinant: " << t << std::endl;
+#endif
         t = t > 0 ? 1:-1;
     }
-    roots.data[0] = 2 * C * cos( acos (t) / 3  ) - b/3.0;
-    roots.data[1] = 2 * C * cos( acos (t) / 3 - 2 * M_PI / 3 ) - b/3.0;
-    roots.data[2] = 2 * C * cos( acos (t) / 3 - 4 * M_PI / 3 ) - b/3.0;
+    roots.data[0] = ( 2 * C * cos( acos (t) / 3  ) - b/3.0 );
+    roots.data[1] = ( 2 * C * cos( acos (t) / 3 - 2 * M_PI / 3 ) - b/3.0 );
+    roots.data[2] = ( 2 * C * cos( acos (t) / 3 - 4 * M_PI / 3 ) - b/3.0 );
 
-    std::sort(roots.data, roots.data + 3);
+    std::sort(roots.data, roots.data + 3, [](double a, double b) {return fabs(a) < fabs(b); });
 
     return roots;
 }
@@ -590,7 +608,7 @@ ls_point levelset::find_root(scalar_t b, scalar_t c, scalar_t d) {
 /// \return ls_point
 ls_point levelset::getGradient( Grid& g, scalar_t* window, index_t i, index_t j, index_t k, scalar_t dist, ls_point &Dun, ls_point &Dup ) {
     ls_point _n;
-    scalar_t eps=1e-10;
+    scalar_t eps=1e-6;
     setWindow(g, window, i, j, k);
     for (index_t dir = 0; dir < DIM; ++dir) {
         setGradient(dir, window, Dup, Dun);
@@ -713,12 +731,19 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t tube_width) {
     scalar_t* _window =  (scalar_t*)malloc(DIM * ls.shift * sizeof(scalar_t));
     // scalar_t tube_width = ls.thickness * ls.dx;
 
+    int cnt = 0;
+
     for (index_t i = 0; i < ls.Nx; ++i) {
         for (index_t j = 0; j < ls.Ny; ++j) {
             for (index_t k= 0; k < ls.Nz; ++k) {
                 scalar_t dist = g.get(i, j, k);
                 if ( fabs(dist) <  tube_width) {
+
+                    mapping[i * ls.Ny * ls.Nz + j * ls.Nz + k] = cnt;
+                    cnt ++;
+
                     m_n = ls.getGradient(g, _window, i, j, k, dist, _Dun, _Dup);
+                    m_n = m_n * (1.0 / norm(m_n));
 
                     ls_point P = {
                             ls.sx + i * ls.dx,
@@ -736,33 +761,57 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t tube_width) {
                     /*
                      * compute the nearby gradients for Hessian.
                      */
-                    ls.setHessian(g, _window, 0, i, j, k, _Dun, _Dup, m_n, _H0);
-                    ls.setHessian(g, _window, 1, i, j, k, _Dun, _Dup, m_n, _H1);
-                    ls.setHessian(g, _window, 2, i, j, k, _Dun, _Dup, m_n, _H2);
+
+                    Matrix _H(DIM, DIM);
+
+                    ls.setHessian(g, _window, 0, i, j, k, _Dun, _Dup, m_n, _H);
+                    ls.setHessian(g, _window, 1, i, j, k, _Dun, _Dup, m_n, _H);
+                    ls.setHessian(g, _window, 2, i, j, k, _Dun, _Dup, m_n, _H);
 
                     // symmetrize the Hessian matrix
-                    _H0.data[1] = 0.5 * (_H0.data[1] + _H1.data[0]);
-                    _H1.data[0] = _H0.data[1];
+                    _H(0, 1) = 0.5 * (_H(0, 1) + _H(1, 0));
+                    _H(1, 0) = _H(0, 1);
 
-                    _H0.data[2] = 0.5 * (_H0.data[2] + _H2.data[0]);
-                    _H2.data[0] = _H0.data[2];
+                    _H(0, 2) = 0.5 * (_H(0, 2) + _H(2, 0));
+                    _H(2, 0) = _H(0, 2);
 
-                    _H1.data[2] = 0.5 * (_H1.data[2] + _H2.data[1]);
-                    _H2.data[1] = _H1.data[2];
+                    _H(1, 2) = 0.5 * (_H(1, 2) + _H(2, 1));
+                    _H(2, 1) = _H(1, 2);
 
-                    scalar_t b = -(_H0.data[0] + _H1.data[1] + _H2.data[2]);
-                    scalar_t c = (_H0.data[0] * _H1.data[1] + _H1.data[1] * _H2.data[2] + _H2.data[2] * _H0.data[0]) - 
-                    (_H0.data[1] * _H1.data[0] + _H1.data[2] * _H2.data[1] + _H2.data[0] * _H0.data[2]);
-                    scalar_t d = -(_H0.data[0] * _H1.data[1] * _H2.data[2] + _H0.data[1] * _H1.data[2] * _H2.data[0] + _H0.data[2] *_H1.data[0] * _H2.data[1]) +
-                    (_H0.data[2] * _H1.data[1] * _H2.data[0] + _H0.data[0] * _H1.data[2] * _H2.data[1] + _H0.data[1] * _H1.data[0] * _H2.data[2]);
+                    scalar_t b = -(_H(0,0) + _H(1,1) + _H(2,2));
+                    scalar_t c = (_H(0,0) * _H(1,1) + _H(1,1) * _H(2,2) + _H(2,2) * _H(0,0)) - 
+                    (_H(0,1) * _H(1,0) + _H(1,2) * _H(2,1) + _H(2,0) * _H(0,2));
+                    scalar_t d = -(_H(0,0) * _H(1,1) * _H(2,2) + _H(0,1) * _H(1,2) * _H(2,0) + _H(0,2) *_H(1,0) * _H(2,1)) +
+                    (_H(0,2) * _H(1,1) * _H(2,0) + _H(0,0) * _H(1,2) * _H(2,1) + _H(0,1) * _H(1,0) * _H(2,2));
 
-                    ls_point _curvatures = ls.find_root(b, c, d);
+                    /*
+                     * Find eigenvalue/eigenvectors of H.
+                     */
+                    Vector _w(DIM);
+                    dsyev(_H, _w);
 
-                    curvatures.push_back(_curvatures.data[1] / (1 - dist * _curvatures.data[1] ));
-                    curvatures.push_back(_curvatures.data[2] / (1 - dist * _curvatures.data[2] ));
+                    // captured _w by reference.
+                    vector<int> _perm {0, 1, 2};
+                    std::sort(_perm.begin(), 
+                              _perm.end(), 
+                              [&](const int& a, const int& b){return (fabs(_w(a)) < fabs(_w(b)));});
 
-                    scalar_t rho = (1 - dist * _curvatures.data[1] ) * (1 - dist * _curvatures.data[2] ) ;
+                    curvatures.push_back( _w(_perm[1]) / (1 - dist * _w(_perm[1]) ));
+                    curvatures.push_back( _w(_perm[2]) / (1 - dist * _w(_perm[2]) ));
 
+                    // storage of eigenvectors but oriented. 
+                    // The leading (abs-val) eigenvector in _perm[2], normalized already.
+                    Vector tau(DIM, true, _H.data() + _perm[2] * DIM);
+                    Vector psi(DIM, true, m_n.data); 
+                    // generate the other tangential vector by cross product. [tau, psi, n] oriented.
+                    // psi = - tau x n
+                    cross(tau, psi); 
+                    dscal(-1.0/ nrm2(psi), psi); 
+
+                    eigenvectors.push_back(psi); // _w[_perm[1]]
+                    eigenvectors.push_back(tau); // _w[_perm[2]]
+
+                    scalar_t rho = (1 - dist * _w(_perm[1] )) * (1 - dist * _w(_perm[2]) ) ;
 
                     /*
                      * calculates the weight according to the distance.
