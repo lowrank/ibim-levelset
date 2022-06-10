@@ -29,7 +29,6 @@ scalar_t biquintic_interpolation(Vector& X, Vector& Y, Matrix &wXY, Vector& xy) 
 
     Vector tmp(BQSIZE);
     dgemv(1.0, wXY, _y, 0. , tmp) ;
-
     free(ipiv);
 
     return ddot(_x, tmp);
@@ -87,23 +86,18 @@ std::vector<scalar_t>& beta_all,  scalar_t h_beta,
 std::vector<scalar_t>& weight_all,
 std::function<scalar_t(scalar_t)> func) {
     Vector omall_w1 = weightsinterp_s2biquintic_ab_plus(alpha_beta, alpha_all, h_alpha, beta_all, h_beta, weight_all);
-    
-    // std::cout << omall_w1 << std::endl;
 
     Vector f_tmatFI2(tmatFI2.row());
+
     for (int i = 0; i < tmatFI2.row(); ++i) {
         f_tmatFI2(i) = func(tmatFI2(i));
     }
 
-    int* ipiv = (int *)malloc(tmatFI2.row() * sizeof(int));
-    Matrix X(AmatFI2.row(), AmatFI2.col());
-    X = AmatFI2;
-    dgesv(X, f_tmatFI2, ipiv);
-    free(ipiv);
+    Vector ret(AmatFI2.row()); 
 
-    // std::cout << "f"<<f_tmatFI2 << std::endl;
+    dgemv(1.0, AmatFI2, f_tmatFI2, 0., ret);
 
-    return ddot(f_tmatFI2, omall_w1);
+    return ddot(omall_w1, ret);
 }
 
 /// write into vector.
@@ -115,26 +109,26 @@ std::istream& operator>> (std::istream& in, std::vector<double>& v) {
     return in;
 }
 
-Matrix D0(scalar_t eta, scalar_t kappa_1, scalar_t kappa_2) {
+Matrix D0(scalar_t eta, scalar_t curvature_1, scalar_t curvature_2) {
     Matrix ret(CODIM, CODIM);
-    ret(0, 0) = 1.0 / (1 + kappa_1 * eta);
-    ret(1, 1) = 1.0 / (1 + kappa_2 * eta);
+    ret(0, 0) = 1.0 / (1 - curvature_1 * eta);
+    ret(1, 1) = 1.0 / (1 - curvature_2 * eta);
     return ret;
 }
 
-Matrix M0(scalar_t kappa_1, scalar_t kappa_2) {
+Matrix M0(scalar_t curvature_1, scalar_t curvature_2) {
     Matrix ret(CODIM, CODIM);
-    ret(0, 0) = kappa_1;
-    ret(1, 1) = kappa_2;
+    ret(0, 0) = curvature_1;
+    ret(1, 1) = curvature_2;
     return ret;
 }
 
-Matrix A0(Vector& v1, Vector& v2) {
+Matrix A0(Vector& v1, Vector& v2, vector<int>& permutation) {
     Matrix ret(CODIM, CODIM);
-    ret(0, 0) = v1(0);
-    ret(1, 0) = v1(1);
-    ret(0, 1) = v2(0);
-    ret(1, 1) = v2(1);
+    ret(0, 0) = v1(permutation[0]);
+    ret(0, 1) = v1(permutation[1]);
+    ret(1, 0) = v2(permutation[0]);
+    ret(1, 1) = v2(permutation[1]);
     return ret;
 }
 
@@ -164,7 +158,18 @@ scalar_t auxiliary_func_2(scalar_t t_, Matrix& D_, Matrix& A_) {
 }
 
 /// correction only for singular part within the vacant_radius
-void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg) {
+void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg,
+                         vector<vector<int>> &_contrib_id, 
+                         vector<vector<scalar_t>> &K11_contrib_v,
+                         vector<vector<scalar_t>> &K21_contrib_v,
+                         vector<vector<scalar_t>> &K22_contrib_v
+
+) {
+
+    _contrib_id.resize(surf.nodes.size());
+    K11_contrib_v.resize(surf.nodes.size());
+    K21_contrib_v.resize(surf.nodes.size());
+    K22_contrib_v.resize(surf.nodes.size());
 
     // load weights.
     std::ifstream alpha_inputFile{"../weights/alpha_all.txt"};
@@ -186,7 +191,6 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
     scalar_t h_alpha = alpha_all[1] - alpha_all[0];
     scalar_t h_beta  = beta_all[1]  - beta_all[0];
 
-    // weights_all_shape = 45, 101, 101
     Matrix AmatFI2(NFOUR, NFOUR);
     setValue(AmatFI2, 1.0);
 
@@ -203,6 +207,11 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
             AmatFI2(row, 2 * col    ) = sin(2 * col * tmatFI2(row));
         }
     }
+    // find inverse of AmatFI2
+    int* ipiv = (int *)malloc(AmatFI2.row() * sizeof(int));
+    dgetrf(AmatFI2, ipiv);
+    dgetri(AmatFI2, ipiv); 
+    free(ipiv);
 
     vector<point> source, target;
     vector<scalar_t > weight, normalX, normalY, normalZ;
@@ -210,12 +219,12 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
 
     scalar_t dx = ls.dx / rescale;
 
-    vector<vector<int>> _contrib_id(surf.nodes.size());
+    // vector<vector<int>> _contrib_id(surf.nodes.size());
+    // vector<vector<scalar_t>> K11_contrib_v(surf.nodes.size());
+    // vector<vector<scalar_t>> K12_contrib_v(surf.nodes.size());
+    // vector<vector<scalar_t>> K21_contrib_v(surf.nodes.size());
+    // vector<vector<scalar_t>> K22_contrib_v(surf.nodes.size());
 
-    vector<vector<scalar_t>> K11_contrib_v(surf.nodes.size());
-    vector<vector<scalar_t>> K12_contrib_v(surf.nodes.size());
-    vector<vector<scalar_t>> K21_contrib_v(surf.nodes.size());
-    vector<vector<scalar_t>> K22_contrib_v(surf.nodes.size());
     /*
      * map all points back to the actual protein surface.
      */
@@ -235,7 +244,8 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
                     surf.nodes[id].data[2]/rescale
                 }
         );
-        weight.push_back(surf.weights[id] * rescale * dx * SQR(dx));
+
+        weight.push_back(surf.weights[id] * rescale * SQR(dx)); // surface measure only for singularity.
         /*
          * normal vectors do not rescale.
          */
@@ -244,20 +254,23 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
         normalZ.push_back(surf.normals[id].data[2]);
 
         curvatures.push_back(surf.curvatures[2 * id] * rescale);
-        curvatures.push_back(surf.curvatures[2 * id + 1] * rescale);
+        curvatures.push_back(surf.curvatures[2 * id + 1] * rescale);// curvatures are negative
     }
     
-    std::cout << std::setw(15) <<"POINTS NUM"  << " " << std::setw(8) << source.size()  << std::endl;
+    auto core = omp_get_max_threads();
+    omp_set_num_threads(core);
 
-    for (index_t id = 0; id < source.size(); id++) {
+#pragma omp parallel for schedule(dynamic) num_threads(core)
+    for (index_t id = 0; id < target.size(); id++) {
         scalar_t theta = acos(normalZ[id] / norm(surf.normals[id]));
         scalar_t phi   = atan2(normalY[id] , normalX[id]);
 
-        scalar_t kappa_1 = curvatures[2 * id];
-        scalar_t kappa_2 = curvatures[2 * id + 1];
+        scalar_t curvature_1 = curvatures[2 * id];
+        scalar_t curvature_2 = curvatures[2 * id + 1]; 
 
-        Matrix M = M0(kappa_1, kappa_2);
-        Matrix A = A0(surf.eigenvectors[2 * id], surf.eigenvectors[2 * id + 1]);
+        // std::cout << curvature_1 << " " << curvature_2 << std::endl;
+
+        Matrix M = M0(curvature_1, curvature_2);
 
         vector<scalar_t> ALPHA;
         vector<scalar_t> BETA;
@@ -268,11 +281,20 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
         index_t node_x = (index_t)((surf.nodes[id].data[0] - ls.sx) / ls.dx);
         index_t node_y = (index_t)((surf.nodes[id].data[1] - ls.sy) / ls.dx);
         index_t node_z = (index_t)((surf.nodes[id].data[2] - ls.sz) / ls.dx);
+
+        vector<int> permutation;
+        permutation.resize(3);
+        permutation[0] = 0;
+        permutation[1] = 1;
+        permutation[2] = 2;
         
         // decide rotation.
-        if (fabs(tan(theta)) >= SQRT2 && fabs(tan(phi)) >= 1 ) {
+        if (fabs(tan(theta)) >= SQRT2 && fabs(tan(phi)) > 1-1e-8 ) {
         // 1. Tilted. y-planes
-            for (int cur_id = -ls.thickness; cur_id <= ls.thickness + 1; cur_id++) {
+            permutation[0] = 2;
+            permutation[1] = 0;
+            permutation[2] = 1;
+            for (int cur_id = -ls.thickness-1; cur_id <= ls.thickness + 2; cur_id++) {
                 scalar_t cur_y = ls.sy + (node_y + cur_id) * ls.dx;
                 scalar_t scale = ( cur_y - surf.nodes[id].data[1] ) / normalY[id];
                 scalar_t cur_z = surf.nodes[id].data[2] + scale * normalZ[id];
@@ -300,7 +322,10 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
         }
         else if (fabs(tan(theta)) >= SQRT2 && fabs(tan(phi)) < 1) {
         // 2. Tilted. x-planes.
-            for (int cur_id = -ls.thickness; cur_id <= ls.thickness + 1; cur_id++) {
+            permutation[0] = 1;
+            permutation[1] = 2;
+            permutation[2] = 0;
+            for (int cur_id = -ls.thickness-1; cur_id <= ls.thickness + 2; cur_id++) {
                 scalar_t cur_x = ls.sx + (node_x + cur_id) * ls.dx;
                 scalar_t scale = ( cur_x - surf.nodes[id].data[0] ) / normalX[id];
                 scalar_t cur_y = surf.nodes[id].data[1] + scale * normalY[id];
@@ -328,7 +353,7 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
         }
         else {
         // 3. If not too tilted, use default z-planes
-            for (int cur_id = -ls.thickness; cur_id <= ls.thickness + 1; cur_id++) {
+            for (int cur_id = -ls.thickness-1; cur_id <= ls.thickness + 2; cur_id++) {
                 scalar_t cur_z = ls.sz + (node_z + cur_id) * ls.dx;
                 scalar_t scale = ( cur_z - surf.nodes[id].data[2] ) / normalZ[id];
                 scalar_t cur_x = surf.nodes[id].data[0] + scale * normalX[id];
@@ -354,37 +379,35 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
             } // end for
         } // end else
 
-        //get 4 values.
-        
+        Matrix A = A0(surf.eigenvectors[2 * id], surf.eigenvectors[2 * id + 1], permutation);
+
         scalar_t kappa =atof(cfg.options["solvent_kappa"].c_str());
         scalar_t dE = atof(cfg.options["solvent_dE"].c_str());
         scalar_t dI = atof(cfg.options["solvent_dI"].c_str());
 
-        scalar_t secondt_const = 0.25/M_PI;
-        scalar_t epsl_ratio = dE/dI;
-
-        if (id % 5000 == 0) std::cout << id << std::endl;
+        scalar_t CONST     = 0.25/M_PI;
+        scalar_t EPS_RATIO = dE/dI;
 
         for (int _s = 0; _s < ALPHA.size(); ++ _s) {
 
-            auto dist = DIST[_s];
-            auto D0_now = D0(dist, kappa_1, kappa_2);
+            scalar_t dist = DIST[_s];
+            Matrix D0_now = D0(dist, curvature_1, curvature_2);
 
-            auto lfun_1 = [&](scalar_t t) { return auxiliary_func_1(t, D0_now, A, M);};
-            auto lfun_2 = [&](scalar_t t) { return auxiliary_func_2(t, D0_now, A);};
+            auto lfun_1 = [&](scalar_t t) { return auxiliary_func_1(t, D0_now, A, M);}; // checked.
+            auto lfun_2 = [&](scalar_t t) { return auxiliary_func_2(t, D0_now, A);};    // checked.
 
             Vector alpha_beta(2);
             alpha_beta(0) = ALPHA[_s];
             alpha_beta(1) = BETA[_s];
 
-            auto wjj = w_k0_ptilde1(alpha_beta, 
+            scalar_t wjj = w_k0_ptilde1(alpha_beta, 
             AmatFI2, tmatFI2, 
             alpha_all, h_alpha, 
             beta_all,  h_beta,
             weight_all,
             lfun_1);
             
-            auto w21 = w_k0_ptilde1(alpha_beta, 
+            scalar_t w21 = w_k0_ptilde1(alpha_beta, 
             AmatFI2, tmatFI2, 
             alpha_all, h_alpha, 
             beta_all,  h_beta,
@@ -395,20 +418,19 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
 
             _contrib_id[id].push_back(surf.mapping[ID[_s]]);
                 
-            K11_contrib_v[id].push_back( wjj * weight[surf.mapping[ID[_s]]] * secondt_const * (1 - epsl_ratio) );
-            K22_contrib_v[id].push_back( wjj * weight[surf.mapping[ID[_s]]] * secondt_const * (1 - 1/epsl_ratio) );
-            K21_contrib_v[id].push_back( w21*  weight[surf.mapping[ID[_s]]] * 0.5 * SQR(kappa) );
-            K12_contrib_v[id].push_back( secondt_const * kappa * weight[surf.mapping[ID[_s]]] );
+            K11_contrib_v[id].push_back( wjj * weight[surf.mapping[ID[_s]]] * CONST * (1 - EPS_RATIO) );
+            K22_contrib_v[id].push_back( wjj * weight[surf.mapping[ID[_s]]] * CONST * (1 - 1/EPS_RATIO) );
+            K21_contrib_v[id].push_back( w21 * weight[surf.mapping[ID[_s]]] * CONST * 0.5 * SQR(kappa) );
         }
 
 // ij0_PB_a(t,D0,Amat,Mmat) = 0.5*(dot(D0*Amat*[cos(t);sin(t)], Mmat*D0*Amat*[cos(t);sin(t)]))/(norm(D0*Amat*[cos(t);sin(t)])^3)
 
 // wjj = w_k0_ptilde1([α;β]; lfun=(t->ij0_PB_a(t,D0_now,Amat, Mmat)));
 // w21 = w_k0_ptilde1([α;β]; lfun=(t->1/norm(D0_now*Amat*[cos(t);sin(t)])))
-// w_K11_single[ m ][ itmp ] = wjj * secondt_const * (1-epsl_ratio)
-// w_K22_single[ m ][ itmp ] = wjj * secondt_const * (1- 1/epsl_ratio)
-// w_K21_single[ m ][ itmp ] = w21 * secondt_const * 0.5 * kappa_val^2
-// w_K12_single[ m ][ itmp ] = secondt_const * kappa_val # no actual weight computation necessary
+// w_K11_single[ m ][ itmp ] = wjj * CONST * (1-EPS_RATIO)
+// w_K22_single[ m ][ itmp ] = wjj * CONST * (1- 1/EPS_RATIO)
+// w_K21_single[ m ][ itmp ] = w21 * CONST * 0.5 * kappa_val^2
+// w_K12_single[ m ][ itmp ] = CONST * kappa_val # no actual weight computation necessary
     } // end for
 }
 

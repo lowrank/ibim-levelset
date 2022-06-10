@@ -10,6 +10,11 @@
 #include "levelset.h"
 #include "Config.h"
 
-void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg);
+void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg, 
+              vector<vector<int>> &_contrib_id, 
+              vector<vector<scalar_t>> &K11_contrib_v,
+              vector<vector<scalar_t>> &K21_contrib_v,
+              vector<vector<scalar_t>> &K22_contrib_v
+);
 
 #endif //LEVELSET_ELECTRIC_H

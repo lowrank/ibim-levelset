@@ -89,6 +89,9 @@ levelset::~levelset() {
 }
 
 void levelset::expand(Molecule &mol, Grid &g, scalar_t probe) {
+    auto core = omp_get_max_threads();
+    omp_set_num_threads(core);
+    
     for (index_t aId = 0; aId < (index_t)mol.centers.size();++aId) {
         int r = (int)((mol.radii[aId] + probe)/dx) + bandwidth;
         int icx = (int)((mol.centers[aId].data[0] - sx) / dx);
@@ -100,8 +103,7 @@ void levelset::expand(Molecule &mol, Grid &g, scalar_t probe) {
             exit (EXIT_FAILURE);
         }
 
-
-#pragma omp parallel for schedule(static) collapse(3) num_threads(4)
+#pragma omp parallel for schedule(static) collapse(3) num_threads(core)
         for (int a = icx - r; a <= icx + r; ++a) {
             for (int b = icy - r; b <= icy + r; ++b) {
                 for (int c = icz - r; c<= icz + r; ++c) {
@@ -796,8 +798,8 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t tube_width) {
                               _perm.end(), 
                               [&](const int& a, const int& b){return (fabs(_w(a)) < fabs(_w(b)));});
 
-                    curvatures.push_back( _w(_perm[1]) / (1 - dist * _w(_perm[1]) ));
-                    curvatures.push_back( _w(_perm[2]) / (1 - dist * _w(_perm[2]) ));
+                    curvatures.push_back( - _w(_perm[1]) / (1 - dist * _w(_perm[1]) ));
+                    curvatures.push_back( - _w(_perm[2]) / (1 - dist * _w(_perm[2]) )); // curvatures are negative.
 
                     // storage of eigenvectors but oriented. 
                     // The leading (abs-val) eigenvector in _perm[2], normalized already.

@@ -17,7 +17,12 @@
 
 using namespace bbfmm;
 
-void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg);
+void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg,
+                         vector<vector<int>> &_contrib_id, 
+                         vector<vector<scalar_t>> &K11_contrib_v,
+                         vector<vector<scalar_t>> &K21_contrib_v,
+                         vector<vector<scalar_t>> &K22_contrib_v
+);
 
 
 /* ***********************************

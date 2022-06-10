@@ -83,7 +83,21 @@ int main(int argc, char* argv[]) {
     v.run();
 #endif
 
-    electric_correction(g, ls, surf, mol, s, cfg);
-    // electric(g, ls, surf, mol, s, cfg);
+    vector<vector<int>> _contrib_id;
+    vector<vector<scalar_t>> K11_contrib_v;
+    vector<vector<scalar_t>> K21_contrib_v;
+    vector<vector<scalar_t>> K22_contrib_v;
+    
+    electric_correction(g, ls, surf, mol, s, cfg, 
+                        _contrib_id, 
+                        K11_contrib_v, 
+                        K21_contrib_v,
+                        K22_contrib_v);
+                        
+    electric(g, ls, surf, mol, s, cfg,
+                        _contrib_id, 
+                        K11_contrib_v, 
+                        K21_contrib_v,
+                        K22_contrib_v);
     return 0;
 }
