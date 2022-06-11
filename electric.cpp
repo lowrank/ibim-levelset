@@ -61,9 +61,9 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
     index_t  N = (index_t) source.size();
 
-    scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
+    // scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
 
-    // scalar_t vacant_radius =  0.25 * dx; // nonzero is enough.
+    scalar_t vacant_radius =  0.5 * dx; // nonzero is enough.
 
     scalar_t area = std::accumulate(weight.begin(), weight.end(), 0.);
 
@@ -119,7 +119,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
-            return 0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
+            return 0.;// 0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
         } else {
             return (1 - exp(-t) * (t + 1)) / d / r /  4 / M_PI +
                    (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r / 4 / M_PI;
@@ -136,7 +136,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
-            return 0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
+            return 0.;//0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
         } else {
             return (1 - exp(-t) * (t + 1))  / d / r /  4 / M_PI +
                    (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r / 4 / M_PI;
@@ -153,7 +153,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
-            return 0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
+            return 0.;//0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
         } else {
             return (1 - exp(-t) * (t + 1))  / d / r / 4 / M_PI +
                    (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
@@ -420,8 +420,8 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         // updated.
         for (auto id = 0; id < _N; ++id) {
-            output(id) = _phi(id) + (ret1x(id) + ret1y(id) + ret1z(id) - ret2(id)) / (0.5 * (1 + dE / dI)); //  +  s_ret11(id) 
-            output(id + _N) = _phi(id + _N) + (tmp1(id) - tmp2(id) ) / (0.5 * (1 + dI / dE)); //  + s_ret21(id) - s_ret22(id)
+            output(id) = _phi(id) + (ret1x(id) + ret1y(id) + ret1z(id) - ret2(id)    +  s_ret11(id)      ) / (0.5 * (1 + dE / dI)); //  
+            output(id + _N) = _phi(id + _N) + (tmp1(id) - tmp2(id)   + s_ret21(id) - s_ret22(id) ) / (0.5 * (1 + dI / dE)); // 
         }
 
         return output;
@@ -432,10 +432,9 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         return dmapping(source, target, weight, normalX, normalY, normalZ, phi);
     };
 
-
     Vector start(2 * N); setValue(start, 0.);
-
     Vector load(2 * N); setValue(load, 0.);
+
     for (auto id = 0; id < N; ++id) {
         for (auto atom_id = 0; atom_id <  mol.N; ++atom_id) {
             scalar_t d = SQR(source[id].x - mol.centers[atom_id].data[0] / rescale) +

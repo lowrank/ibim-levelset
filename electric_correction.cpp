@@ -268,8 +268,6 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
         scalar_t curvature_1 = curvatures[2 * id];
         scalar_t curvature_2 = curvatures[2 * id + 1]; 
 
-        // std::cout << curvature_1 << " " << curvature_2 << std::endl;
-
         Matrix M = M0(curvature_1, curvature_2);
 
         vector<scalar_t> ALPHA;
@@ -289,7 +287,7 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
         permutation[2] = 2;
         
         // decide rotation.
-        if (fabs(tan(theta)) >= SQRT2 && fabs(tan(phi)) > 1-1e-8 ) {
+        if (fabs(tan(theta)) >= SQRT2 && fabs(tan(phi)) > 1 ) {
         // 1. Tilted. y-planes
             permutation[0] = 2;
             permutation[1] = 0;
@@ -300,7 +298,7 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
                 scalar_t cur_z = surf.nodes[id].data[2] + scale * normalZ[id];
                 scalar_t cur_x = surf.nodes[id].data[0] + scale * normalX[id];
 
-                // find closet node.
+                // find closest node.
                 index_t cur_node_y = node_y + cur_id;
                 index_t cur_node_z = round((cur_z - ls.sz) / ls.dx) ;
                 index_t cur_node_x = round((cur_x - ls.sx) / ls.dx) ;
