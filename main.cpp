@@ -3,6 +3,7 @@
 #define GRID
 #include <iostream>
 #include "electric.h"
+#include "electric_correction.h"
 
 #undef VIEW
 #undef GRID
@@ -42,7 +43,6 @@ int main(int argc, char* argv[]) {
     std::cout << std::setw(15) << "h" << " " << std::setw(8) << dx / s << " Angstroms" << std::endl;
     std::cout << std::setw(15) << "s" << " " << std::setw(8) << s << " Rescale" << std::endl;
 
-
     levelset ls(size, size, size, 11, grid_lo, grid_lo, grid_lo, dx, cfg);
 
     Grid g(-2.0 * size, ls.Nx, ls.Ny, ls.Nz);
@@ -55,11 +55,21 @@ int main(int argc, char* argv[]) {
     g *= -1.0;
     phi0 = g;
 
-    RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5));
+    // if a point is far, the distance is fixed explicitly.
+    // RUN("PRESET", ls.setExterior(mol, g, pr));
+
+    // only reinitialization on nearby points.
+    RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5, pr));
 
     ls.setInclusion(g);
 
-    Surface surf(g, ls, s);
+
+    /*
+     *  surface information.
+     *
+     */
+
+    Surface surf(g, ls, ls.thickness * ls.dx);
 
 #ifdef GRID
     g.output("../data/output.grid");
@@ -73,7 +83,21 @@ int main(int argc, char* argv[]) {
     v.run();
 #endif
 
-    electric(g, ls, surf, mol, s, cfg);
-
+    vector<vector<int>> _contrib_id;
+    vector<vector<scalar_t>> K11_contrib_v;
+    vector<vector<scalar_t>> K21_contrib_v;
+    vector<vector<scalar_t>> K22_contrib_v;
+    
+    electric_correction(g, ls, surf, mol, s, cfg, 
+                        _contrib_id, 
+                        K11_contrib_v, 
+                        K21_contrib_v,
+                        K22_contrib_v);
+                        
+    electric(g, ls, surf, mol, s, cfg,
+                        _contrib_id, 
+                        K11_contrib_v, 
+                        K21_contrib_v,
+                        K22_contrib_v);
     return 0;
 }

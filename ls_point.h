@@ -127,16 +127,8 @@ inline scalar_t norm(const ls_point& a) {
     return sqrt(cblas_ddot(DIM, a.data, 1, a.data, 1));
 }
 
-inline scalar_t nrm2(const ls_point& a) {
-    return cblas_ddot(DIM, a.data, 1, a.data, 1);
-}
-
 inline scalar_t norm(ls_point&& a) {
     return sqrt(cblas_ddot(DIM, a.data, 1, a.data, 1));
-}
-
-inline scalar_t nrm2(ls_point&& a) {
-    return cblas_ddot(DIM, a.data, 1, a.data, 1);
 }
 
 #endif //POINT_H

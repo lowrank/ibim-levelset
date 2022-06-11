@@ -1,6 +1,6 @@
 #include "lapacke_wrapper.h"
 
-using namespace bbfmm;
+// using namespace bbfmm;
 
 void dgetrf(Matrix& A, int* ipiv) {
     int ret;
@@ -31,5 +31,12 @@ void dgesv(Matrix& A, Matrix& B, int* ipiv) {
     int ret;
     ret = LAPACKE_dgesv(LAPACK_COL_MAJOR, A.row(), B.col(), A.data(), A.row(), ipiv, B.data(), B.row());
     // A, b are overwritten.
+    assert(ret == 0);
+}
+
+// eigenvalue/eigenvector of symmetric matrix
+void dsyev(Matrix& A, Vector& w) {
+    assert(A.row() == A.col());
+    int ret = LAPACKE_dsyev(LAPACK_COL_MAJOR, 'V', 'U',  A.row()  , A.data(),  A.row() , w.data());    
     assert(ret == 0);
 }

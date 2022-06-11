@@ -1,12 +1,18 @@
 //
 // Created by lurker on 3/22/17.
+// Updated on 6/3/2022.
 //
 
 #include "electric.h"
 
 using namespace bbfmm;
 
-void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg){
+void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t rescale, Config& cfg,
+              vector<vector<int>> &_contrib_id, 
+              vector<vector<scalar_t>> &K11_contrib_v,
+              vector<vector<scalar_t>> &K21_contrib_v,
+              vector<vector<scalar_t>> &K22_contrib_v
+){
     vector<point> source, target;
     vector<scalar_t > weight, normalX, normalY, normalZ;
 
@@ -30,7 +36,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
                     surf.nodes[id].data[2]/rescale
                 }
         );
-        weight.push_back(surf.weights[id] * rescale * dx * SQR(dx));
+        weight.push_back(surf.weights[id] * rescale * dx * SQR(dx)); //cube measure
 
         /*
          * normal vectors do not rescale.
@@ -55,7 +61,9 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
     index_t  N = (index_t) source.size();
 
-    scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
+    // scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
+
+    scalar_t vacant_radius =  0.5 * dx; // nonzero is enough.
 
     scalar_t area = std::accumulate(weight.begin(), weight.end(), 0.);
 
@@ -107,15 +115,14 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.x - b.x;
         scalar_t df2 = a.x - b.x;
-        scalar_t delta = 1.0;
 
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
-            return 0.;
+            return 0.;// 0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
         } else {
-            return (1 - exp(-t) * (t + 1)) * delta / d / r +
-                   (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (1 - exp(-t) * (t + 1)) / d / r /  4 / M_PI +
+                   (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r / 4 / M_PI;
         }
     };
 
@@ -125,16 +132,14 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.y - b.y;
         scalar_t df2 = a.y - b.y;
-        scalar_t delta = 1.0;
-
 
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
-            return 0.;
+            return 0.;//0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
         } else {
-            return (1 - exp(-t) * (t + 1)) * delta / d / r +
-                   (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (1 - exp(-t) * (t + 1))  / d / r /  4 / M_PI +
+                   (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r / 4 / M_PI;
         }
     };
 
@@ -144,16 +149,14 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.z - b.z;
         scalar_t df2 = a.z - b.z;
-        scalar_t delta = 1.0;
-
 
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
-            return 0.;
+            return 0.;//0.5 * SQR(kappa) / 4/ M_PI / vacant_radius;
         } else {
-            return (1 - exp(-t) * (t + 1)) * delta / d / r +
-                   (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (1 - exp(-t) * (t + 1))  / d / r / 4 / M_PI +
+                   (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
 
@@ -163,15 +166,13 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.x - b.x;
         scalar_t df2 = a.y - b.y;
-        scalar_t delta = 1.0;
-
 
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
             return 0.;
         } else {
-            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
 
@@ -181,15 +182,13 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.y - b.y;
         scalar_t df2 = a.z - b.z;
-        scalar_t delta = 1.0;
-
-
+ 
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
             return 0.;
         } else {
-            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
 
@@ -199,15 +198,13 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.z - b.z;
         scalar_t df2 = a.x - b.x;
-        scalar_t delta = 1.0;
-
-
+       
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
             return 0.;
         } else {
-            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
 
@@ -218,15 +215,13 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.x - b.x;
         scalar_t df2 = a.y - b.y;
-        scalar_t delta = 1.0;
-
-
+       
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
             return 0.;
         } else {
-            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
 
@@ -236,15 +231,13 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.y - b.y;
         scalar_t df2 = a.z - b.z;
-        scalar_t delta = 1.0;
-
-
+        
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
             return 0.;
         } else {
-            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
 
@@ -254,18 +247,15 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
         scalar_t df1 = a.z - b.z;
         scalar_t df2 = a.x - b.x;
-        scalar_t delta = 1.0;
-
-
+        
         scalar_t t = kappa * r;
 
         if (r < vacant_radius) {
             return 0.;
         } else {
-            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r;
+            return (exp(-t) * ((t + 3) * t + 3) - 3.0) * df1 * df2 / d / d / r /  4 / M_PI;
         }
     };
-
 
     auto K4x = [&](point &a, point &b) {
         scalar_t d = SQR(a.x - b.x) + SQR(a.y - b.y) + SQR(a.z - b.z);
@@ -322,6 +312,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         Vector pphi_pn(_N);
         Vector phiX(_N), phiY(_N), phiZ(_N);
 
+
         for (auto id = 0; id < _N; ++id) {
             pphi_pn(id) = _phi(id + _N) * _weight[id];
             phiX(id) = _phi(id) * _normalX[id] * _weight[id];
@@ -377,11 +368,60 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
             tmp2(id) = normalX[id] * ret4x(id) + normalY[id] * ret4y(id) + normalZ[id] * ret4z(id);
         }
 
-        Vector output(2 * _N);
+        /*
+        update
+        */
+
+        Vector s_ret11(_N), s_ret21(_N), s_ret22(_N);
 
         for (auto id = 0; id < _N; ++id) {
-            output(id) = _phi(id) + (ret1x(id) + ret1y(id) + ret1z(id) - ret2(id)) / (0.5 * (1 + dE / dI));
-            output(id + _N) = _phi(id + _N) + (tmp1(id) - tmp2(id)) / (0.5 * (1 + dI / dE));
+            for (auto c_id = 0; c_id < _contrib_id[id].size(); c_id++) {
+                s_ret11(id) += _phi( _contrib_id[id][c_id] )     * K11_contrib_v[id][c_id]; 
+                s_ret21(id) += _phi( _contrib_id[id][c_id] )     * K21_contrib_v[id][c_id]; 
+                s_ret22(id) += _phi( _contrib_id[id][c_id] + _N) * K22_contrib_v[id][c_id];
+            }
+
+            // std::cout << id << " : " << s_ret11(id)  << " " << s_ret21(id) << " " << s_ret22(id) << std::endl;
+
+            // s_ret11(id) = 0;
+            // s_ret21(id) = 0;
+            // s_ret22(id) = 0;
+
+            for (auto c_id = 0; c_id < _contrib_id[id].size(); c_id++) {
+                s_ret11(id) -= phiX(_contrib_id[id][c_id]) * K1x(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret11(id) -= phiY(_contrib_id[id][c_id]) * K1y(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret11(id) -= phiZ(_contrib_id[id][c_id]) * K1z(_source[ _contrib_id[id][c_id] ], _target[id]);
+
+                s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xx(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xy(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xz(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yx(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yy(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yz(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zx(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zy(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zz(_source[ _contrib_id[id][c_id] ], _target[id]);
+
+                s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4x(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4y(_source[ _contrib_id[id][c_id] ], _target[id]);
+                s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4z(_source[ _contrib_id[id][c_id] ], _target[id]);
+            }
+        
+            // std::cout << id << " : " << s_ret11(id) << " " << s_ret21(id) << " " << s_ret22(id) << std::endl;
+        }
+
+        /*
+        end of update
+        */
+
+
+
+        Vector output(2 * _N);
+
+        // updated.
+        for (auto id = 0; id < _N; ++id) {
+            output(id) = _phi(id) + (ret1x(id) + ret1y(id) + ret1z(id) - ret2(id)    +  s_ret11(id)      ) / (0.5 * (1 + dE / dI)); //  
+            output(id + _N) = _phi(id + _N) + (tmp1(id) - tmp2(id)   + s_ret21(id) - s_ret22(id) ) / (0.5 * (1 + dI / dE)); // 
         }
 
         return output;
@@ -392,10 +432,9 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         return dmapping(source, target, weight, normalX, normalY, normalZ, phi);
     };
 
-
     Vector start(2 * N); setValue(start, 0.);
-
     Vector load(2 * N); setValue(load, 0.);
+
     for (auto id = 0; id < N; ++id) {
         for (auto atom_id = 0; atom_id <  mol.N; ++atom_id) {
             scalar_t d = SQR(source[id].x - mol.centers[atom_id].data[0] / rescale) +
@@ -473,14 +512,17 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
 
         Vector ret1x, ret1y, ret1z, ret2;
+
         _K1x.run(ret1x);
         _K1y.run(ret1y);
         _K1z.run(ret1z);
         _K2.run(ret2);
+
+
         Vector output(_M); setValue(output, 0.);
 
         for (auto id = 0; id < _M; ++id) {
-            output(id) = ret2(id) - (ret1x(id) + ret1y(id) + ret1z(id));
+            output(id) = ret2(id) - (ret1x(id) + ret1y(id) + ret1z(id)) ;
         }
         return output;
     };
@@ -505,6 +547,6 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
     }
     polarizedEnergy *= 0.5;
 
-    std::cout << "polarized energy: " << std::setw(20) << std::scientific <<polarizedEnergy * ENERGY_CONST <<std::fixed << " kcal/mol" << std::endl;
+    std::cout << "polarized energy: " << std::setw(20) << std::scientific << polarizedEnergy * ENERGY_CONST <<std::fixed << " kcal/mol" << std::endl;
 
 }

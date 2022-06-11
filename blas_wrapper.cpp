@@ -133,3 +133,16 @@ scalar_t ddot(Vector &x, Vector &y) {
     assert(x.row() == y.row());
     return cblas_ddot(x.row(), x.data(), 1, y.data(), 1);
 }
+
+// only for 3D.
+void cross(Vector &x, Vector &y) {
+    assert(x.row() == DIM);
+    assert(y.row() == DIM);
+
+    Matrix B(DIM, DIM);
+    B(0, 1) =  y(2); B(1, 0) = -B(0, 1);
+    B(0, 2) = -y(1); B(2, 0) = -B(0, 2);
+    B(1, 2) =  y(0); B(2, 1) = -B(1, 2);
+
+    dgemv(1.0, B, x, 0., y);
+}

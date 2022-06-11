@@ -8,6 +8,11 @@
 #include "utils.h"
 #include "molecule.h"
 #include "Config.h"
+#include "linalg.h"
+#include "blas_wrapper.h"
+#include "lapacke_wrapper.h"
+
+using namespace bbfmm;
 
 class Grid {
 public:
@@ -24,6 +29,7 @@ public:
     Grid &operator=(const Grid &other);
 
     scalar_t get(index_t i, index_t j, index_t k);
+
     void set(scalar_t val, index_t i, index_t j, index_t k);
 
     void output(std::string filename);
@@ -50,12 +56,14 @@ public:
     ~levelset();
     void expand(Molecule& mol, Grid &g, scalar_t probe);
     void evolve(Grid& g, scalar_t final_t, scalar_t vel, scalar_t cfl_thres);
-    void reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres);
+    void reinitialize(Grid &g, Grid &phi0, scalar_t final_t, scalar_t vel, scalar_t cfl_thres, scalar_t pr);
+    void setExterior(Molecule& mol, Grid &g, scalar_t probe);
 
     void setWindow(Grid& g, scalar_t* window, index_t i, index_t j, index_t k);
     void setGradient(index_t dir, scalar_t* window, ls_point& uxp, ls_point& uxn);
 
-    void setHessian(Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k, ls_point& _Dun, ls_point& _Dup,ls_point& _m, ls_point& H);
+    void setHessian(Grid &g, scalar_t *window, index_t dir, index_t i, index_t j, index_t k, 
+    ls_point& _Dun, ls_point& _Dup,ls_point& _m, Matrix& H);
 
     scalar_t getNorm(ls_point& Dun, ls_point& Dup);
     ls_point getVec(ls_point &Dun, ls_point &Dup);
@@ -71,7 +79,7 @@ public:
 
 class Surface {
 public:
-    Surface(Grid &g, levelset &ls, scalar_t s);
+    Surface(Grid &g, levelset &ls, scalar_t tube_width);
 
     ~Surface();
     vector<ls_point> nodes;
@@ -79,6 +87,8 @@ public:
 
     vector<scalar_t> weights;
     vector<scalar_t> curvatures;
+    vector<Vector> eigenvectors;
+    std::unordered_map<int, int> mapping; 
 
     void output(std::string filename);
 };
