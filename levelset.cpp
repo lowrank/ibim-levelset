@@ -835,7 +835,9 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t tube_width) {
 }
 
 Surface::~Surface() {
-
+#ifdef DEBUG
+    std::cout << "destructing surface." << std::endl;
+#endif
 }
 
 

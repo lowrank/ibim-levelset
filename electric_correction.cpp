@@ -111,6 +111,10 @@ std::istream& operator>> (std::istream& in, std::vector<double>& v) {
 
 Matrix D0(scalar_t eta, scalar_t curvature_1, scalar_t curvature_2) {
     Matrix ret(CODIM, CODIM);
+    if (fabs(curvature_1 * eta) >= 1 || fabs(curvature_2 * eta) >= 1) {
+        std::cout << "D0 Matrix error, eta oversize... " << curvature_1  << " " << curvature_2 << " " << eta << std::endl;
+        exit (EXIT_FAILURE);
+    }
     ret(0, 0) = 1.0 / (1 - curvature_1 * eta);
     ret(1, 1) = 1.0 / (1 - curvature_2 * eta);
     return ret;
@@ -147,6 +151,10 @@ scalar_t auxiliary_func_1(scalar_t t_, Matrix& D_, Matrix& A_, Matrix& M_) {
     scalar_t num = ddot(q, v);
     scalar_t den = pow( nrm2(v), 3 );
 
+    if (den < 1e-8) {
+        std::cout << "auxiliary function [1] small denom warning" << std::endl;
+    }
+
     return 0.5 * num / den;
 
     //  0.5*(dot(D0*Amat*[cos(t);sin(t)], Mmat*D0*Amat*[cos(t);sin(t)]))/(norm(D0*Amat*[cos(t);sin(t)])^3)
@@ -170,6 +178,11 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
     K11_contrib_v.resize(surf.nodes.size());
     K21_contrib_v.resize(surf.nodes.size());
     K22_contrib_v.resize(surf.nodes.size());
+
+    if (atoi(cfg.options["corr"].c_str()) == 0) {
+        // std::cout << "skipping ... " <<std::endl;
+        return;
+    }
 
     // load weights.
     std::ifstream alpha_inputFile{"../weights/alpha_all.txt"};
@@ -218,12 +231,6 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
     vector<scalar_t > curvatures;
 
     scalar_t dx = ls.dx / rescale;
-
-    // vector<vector<int>> _contrib_id(surf.nodes.size());
-    // vector<vector<scalar_t>> K11_contrib_v(surf.nodes.size());
-    // vector<vector<scalar_t>> K12_contrib_v(surf.nodes.size());
-    // vector<vector<scalar_t>> K21_contrib_v(surf.nodes.size());
-    // vector<vector<scalar_t>> K22_contrib_v(surf.nodes.size());
 
     /*
      * map all points back to the actual protein surface.

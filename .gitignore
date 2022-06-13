@@ -92,5 +92,4 @@ cmake-build-debug/
 data/
 build/
 contrib/
-weights/
 tests/

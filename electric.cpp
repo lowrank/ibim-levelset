@@ -61,9 +61,11 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
 
     index_t  N = (index_t) source.size();
 
-    // scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
+    scalar_t vacant_radius = atof(cfg.options["tau"].c_str()) * dx;
 
-    scalar_t vacant_radius =  0.5 * dx; // nonzero is enough.
+    if (atof(cfg.options["corr"].c_str()) > 0) {
+        vacant_radius =  0.5 * dx;
+    }
 
     scalar_t area = std::accumulate(weight.begin(), weight.end(), 0.);
 
@@ -371,57 +373,49 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         /*
         update
         */
-
         Vector s_ret11(_N), s_ret21(_N), s_ret22(_N);
 
-        for (auto id = 0; id < _N; ++id) {
-            for (auto c_id = 0; c_id < _contrib_id[id].size(); c_id++) {
-                s_ret11(id) += _phi( _contrib_id[id][c_id] )     * K11_contrib_v[id][c_id]; 
-                s_ret21(id) += _phi( _contrib_id[id][c_id] )     * K21_contrib_v[id][c_id]; 
-                s_ret22(id) += _phi( _contrib_id[id][c_id] + _N) * K22_contrib_v[id][c_id];
+        if (atoi(cfg.options["corr"].c_str()) > 0) {
+            for (auto id = 0; id < _N; ++id) {
+                for (auto c_id = 0; c_id < _contrib_id[id].size(); c_id++) {
+                    s_ret11(id) += _phi( _contrib_id[id][c_id] )     * K11_contrib_v[id][c_id]; 
+                    s_ret21(id) += _phi( _contrib_id[id][c_id] )     * K21_contrib_v[id][c_id]; 
+                    s_ret22(id) += _phi( _contrib_id[id][c_id] + _N) * K22_contrib_v[id][c_id];
+
+                }
+
+                for (auto c_id = 0; c_id < _contrib_id[id].size(); c_id++) {
+                    s_ret11(id) -= phiX(_contrib_id[id][c_id]) * K1x(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret11(id) -= phiY(_contrib_id[id][c_id]) * K1y(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret11(id) -= phiZ(_contrib_id[id][c_id]) * K1z(_source[ _contrib_id[id][c_id] ], _target[id]);
+
+                    s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xx(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xy(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xz(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yx(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yy(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yz(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zx(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zy(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zz(_source[ _contrib_id[id][c_id] ], _target[id]);
+
+                    s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4x(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4y(_source[ _contrib_id[id][c_id] ], _target[id]);
+                    s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4z(_source[ _contrib_id[id][c_id] ], _target[id]);
+                }
             }
-
-            // std::cout << id << " : " << s_ret11(id)  << " " << s_ret21(id) << " " << s_ret22(id) << std::endl;
-
-            // s_ret11(id) = 0;
-            // s_ret21(id) = 0;
-            // s_ret22(id) = 0;
-
-            for (auto c_id = 0; c_id < _contrib_id[id].size(); c_id++) {
-                s_ret11(id) -= phiX(_contrib_id[id][c_id]) * K1x(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret11(id) -= phiY(_contrib_id[id][c_id]) * K1y(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret11(id) -= phiZ(_contrib_id[id][c_id]) * K1z(_source[ _contrib_id[id][c_id] ], _target[id]);
-
-                s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xx(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xy(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiX(_contrib_id[id][c_id]) * K3xz(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yx(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yy(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiY(_contrib_id[id][c_id]) * K3yz(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zx(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zy(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret21(id) -= phiZ(_contrib_id[id][c_id]) * K3zz(_source[ _contrib_id[id][c_id] ], _target[id]);
-
-                s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4x(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4y(_source[ _contrib_id[id][c_id] ], _target[id]);
-                s_ret22(id) -= pphi_pn(_contrib_id[id][c_id]) * K4z(_source[ _contrib_id[id][c_id] ], _target[id]);
-            }
-        
-            // std::cout << id << " : " << s_ret11(id) << " " << s_ret21(id) << " " << s_ret22(id) << std::endl;
         }
 
         /*
         end of update
         */
 
-
-
         Vector output(2 * _N);
 
         // updated.
         for (auto id = 0; id < _N; ++id) {
-            output(id) = _phi(id) + (ret1x(id) + ret1y(id) + ret1z(id) - ret2(id)    +  s_ret11(id)      ) / (0.5 * (1 + dE / dI)); //  
-            output(id + _N) = _phi(id + _N) + (tmp1(id) - tmp2(id)   + s_ret21(id) - s_ret22(id) ) / (0.5 * (1 + dI / dE)); // 
+            output(id) = _phi(id) + (ret1x(id) + ret1y(id) + ret1z(id) - ret2(id) +  s_ret11(id)       ) / (0.5 * (1 + dE / dI)); //    
+            output(id + _N) = _phi(id + _N) + (tmp1(id) - tmp2(id)  + s_ret21(id) - s_ret22(id)  ) / (0.5 * (1 + dI / dE)); //  
         }
 
         return output;
@@ -452,7 +446,7 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
     }
 
 
-    GMRES(FullMap, start, load, atoi(cfg.options["gmres_restart"].c_str()), atoi(cfg.options["gmres_maxiter"].c_str()), atof(cfg.options["gmres_tol"].c_str()));
+    GMRES(FullMap, start, load, atoi(cfg.options["gmres_restart"].c_str()), atoi(cfg.options["gmres_maxiter"].c_str()), atof(cfg.options["gmres_tol"].c_str())); // 
 
     /*
      * solution is stored in start.

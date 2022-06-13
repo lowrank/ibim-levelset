@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
     Molecule mol; mol.load(cfg.options["pqr_file"]);
 
-    scalar_t s = mol.centralize(240.0);
+    scalar_t s = mol.centralize(100.0);
     mol.getCenter();
     scalar_t pr = 1.4 * s;
 
@@ -82,18 +82,21 @@ int main(int argc, char* argv[]) {
     v.loadLevelSet(g, ls, surf);
     v.run();
 #endif
-
+    
     vector<vector<int>> _contrib_id;
     vector<vector<scalar_t>> K11_contrib_v;
     vector<vector<scalar_t>> K21_contrib_v;
     vector<vector<scalar_t>> K22_contrib_v;
     
+
+
     electric_correction(g, ls, surf, mol, s, cfg, 
-                        _contrib_id, 
-                        K11_contrib_v, 
-                        K21_contrib_v,
-                        K22_contrib_v);
-                        
+                            _contrib_id, 
+                            K11_contrib_v, 
+                            K21_contrib_v,
+                            K22_contrib_v);
+    
+     
     electric(g, ls, surf, mol, s, cfg,
                         _contrib_id, 
                         K11_contrib_v, 
