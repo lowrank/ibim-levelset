@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
     Molecule mol; mol.load(cfg.options["pqr_file"]);
 
-    scalar_t s = mol.centralize(100.0);
+    scalar_t s = mol.centralize(200.0);
     mol.getCenter();
     scalar_t pr = 1.4 * s;
 
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     // if a point is far, the distance is fixed explicitly.
     // RUN("PRESET", ls.setExterior(mol, g, pr));
 
-    // only reinitialization on nearby points.
+    // only reinitialization on nearby points?
     RUN("REINIT", ls.reinitialize(g, phi0, atoi(cfg.options["reinit_step"].c_str()), 1, 0.5, pr));
 
     ls.setInclusion(g);
@@ -68,7 +68,6 @@ int main(int argc, char* argv[]) {
      *  surface information.
      *
      */
-
     Surface surf(g, ls, ls.thickness * ls.dx);
 
 #ifdef GRID
@@ -88,8 +87,6 @@ int main(int argc, char* argv[]) {
     vector<vector<scalar_t>> K21_contrib_v;
     vector<vector<scalar_t>> K22_contrib_v;
     
-
-
     electric_correction(g, ls, surf, mol, s, cfg, 
                             _contrib_id, 
                             K11_contrib_v, 

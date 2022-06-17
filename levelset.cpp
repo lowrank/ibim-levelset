@@ -824,8 +824,6 @@ Surface::Surface(Grid &g, levelset &ls, scalar_t tube_width) {
                      *
                      */
                     weights.push_back(rho * 0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
-                    // weight.push_back(0.5 * (1.0 + cos(M_PI * dist/tube_width)) / tube_width);
-
                 }
             }
         }

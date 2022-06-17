@@ -111,10 +111,6 @@ std::istream& operator>> (std::istream& in, std::vector<double>& v) {
 
 Matrix D0(scalar_t eta, scalar_t curvature_1, scalar_t curvature_2) {
     Matrix ret(CODIM, CODIM);
-    if (fabs(curvature_1 * eta) >= 1 || fabs(curvature_2 * eta) >= 1) {
-        std::cout << "D0 Matrix error, eta oversize... " << curvature_1  << " " << curvature_2 << " " << eta << std::endl;
-        exit (EXIT_FAILURE);
-    }
     ret(0, 0) = 1.0 / (1 - curvature_1 * eta);
     ret(1, 1) = 1.0 / (1 - curvature_2 * eta);
     return ret;
@@ -420,22 +416,12 @@ void electric_correction(Grid& g, levelset& ls, Surface& surf, Molecule& mol, sc
             lfun_2
             );
 
-
             _contrib_id[id].push_back(surf.mapping[ID[_s]]);
                 
             K11_contrib_v[id].push_back( wjj * weight[surf.mapping[ID[_s]]] * CONST * (1 - EPS_RATIO) );
             K22_contrib_v[id].push_back( wjj * weight[surf.mapping[ID[_s]]] * CONST * (1 - 1/EPS_RATIO) );
             K21_contrib_v[id].push_back( w21 * weight[surf.mapping[ID[_s]]] * CONST * 0.5 * SQR(kappa) );
         }
-
-// ij0_PB_a(t,D0,Amat,Mmat) = 0.5*(dot(D0*Amat*[cos(t);sin(t)], Mmat*D0*Amat*[cos(t);sin(t)]))/(norm(D0*Amat*[cos(t);sin(t)])^3)
-
-// wjj = w_k0_ptilde1([α;β]; lfun=(t->ij0_PB_a(t,D0_now,Amat, Mmat)));
-// w21 = w_k0_ptilde1([α;β]; lfun=(t->1/norm(D0_now*Amat*[cos(t);sin(t)])))
-// w_K11_single[ m ][ itmp ] = wjj * CONST * (1-EPS_RATIO)
-// w_K22_single[ m ][ itmp ] = wjj * CONST * (1- 1/EPS_RATIO)
-// w_K21_single[ m ][ itmp ] = w21 * CONST * 0.5 * kappa_val^2
-// w_K12_single[ m ][ itmp ] = CONST * kappa_val # no actual weight computation necessary
     } // end for
 }
 

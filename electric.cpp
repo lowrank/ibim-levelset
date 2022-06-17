@@ -310,10 +310,8 @@ void electric(Grid& g, levelset& ls, Surface& surf, Molecule& mol, scalar_t resc
         _K4y.eval = K4y;
         _K4z.eval = K4z;
 
-
         Vector pphi_pn(_N);
         Vector phiX(_N), phiY(_N), phiZ(_N);
-
 
         for (auto id = 0; id < _N; ++id) {
             pphi_pn(id) = _phi(id + _N) * _weight[id];

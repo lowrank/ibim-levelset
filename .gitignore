@@ -89,7 +89,7 @@ dkms.conf
 
 .idea/
 cmake-build-debug/
-data/
+data/out.*
 build/
 contrib/
 tests/
